@@ -7,9 +7,10 @@ setup(
     install_requires=[
         'argparse',
         'logging',
-        'yaml',
+        'PyYAML',
         'docker'
     ],
+    package_data={'': ['*.yml']},
     url='https://github.com/networkop/arista-ceos-topo',
     license='BSD3',
     author='Michael Kashin',

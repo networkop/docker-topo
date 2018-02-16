@@ -42,15 +42,15 @@ def parse_args():
 
 def enable_lldp(networks):
     import subprocess
-    for net in networks:
-        cmd = 'echo 16384 > /sys/class/net/br-{}/bridge/group_fwd_mask'.format(net)
-        subprocess.call(cmd)
+    for each in networks:
+        cmd = 'echo 16384 > /sys/class/net/br-{}/bridge/group_fwd_mask'.format(each.network.id[:12])
+        subprocess.call(cmd, shell=True)
     return
 
 
 class Device(object):
     def __init__(self, name):
-        LOG.debug('Constructing device %s', name)
+        LOG.debug('Constructing device {}'.format(name))
         self.name = name
         # Setting up defaults
         self.image = CEOS_IMAGE
@@ -85,7 +85,7 @@ class Device(object):
     def get_container(self):
         try:
             return DOCKER.containers.get(self.name)
-        except DOCKER.errors.NotFound:
+        except docker.errors.NotFound:
             return None
 
     def get_config(self):
@@ -101,7 +101,7 @@ class Device(object):
     def start(self):
         LOG.debug('Starting container {}'.format(self.name))
         if self.container.status == 'running':
-            LOG.info('Container %s already running', self.name)
+            LOG.info('Container {} already running'.format(self.name))
             return 1
         self.attach()
         self.container.start()
@@ -121,7 +121,7 @@ class Device(object):
 
     def stop(self):
         if self.container.status != 'running':
-            LOG.info('Container %s is not running', self.name)
+            LOG.info('Container {} is not running'.format(self.name))
             return 1
         self.container.stop()
         return 0
@@ -129,11 +129,11 @@ class Device(object):
 
 class Link(object):
     def __init__(self, link_type, name):
-        LOG.debug('Constructing a %s link with name %s', link_type, name)
+        LOG.debug('Constructing a {} link with name {}'.format(link_type, name))
         self.name = name
         self.link_type = link_type
-        found_net = self.get_network()
-        if not found_net:
+        self.network = self.get_network()
+        if not self.network:
             self.network = DOCKER.networks.create(
                 self.name,
                 driver='bridge',
@@ -143,7 +143,7 @@ class Link(object):
     def get_network(self):
         try:
             return self.name == DOCKER.networks.get(self.name)
-        except DOCKER.errors.NotFound:
+        except docker.errors.NotFound:
             return None
 
     def connect(self, device):
