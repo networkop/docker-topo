@@ -1,0 +1,233 @@
+#!/usr/bin/env python3
+import argparse
+import logging
+import yaml
+import docker
+import os.path
+
+LOG = logging.getLogger(__name__)
+DOCKER = docker.from_env()
+CHECK = False
+CONF_DIR = './config'
+PREFIX = 'CEOS-LAB'
+CEOS_IMAGE = 'veos:latest'
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Tool to create cEOS topologies")
+    group = parser.add_mutually_exclusive_group()
+    parser.add_argument(
+        '-d', '--debug',
+        help='Enable Debug',
+        action='store_true'
+    )
+    group.add_argument(
+        "--create",
+        help="Create topology",
+        action="store_true"
+    )
+    group.add_argument(
+        "--destroy",
+        help="Destroy topology",
+        action="store_true"
+    )
+    parser.add_argument(
+        "topology",
+        help='Topology file',
+        type=str
+    )
+    args = parser.parse_args()
+    return args
+
+
+def enable_lldp(networks):
+    import subprocess
+    for net in networks:
+        cmd = 'echo 16384 > /sys/class/net/br-{}/bridge/group_fwd_mask'.format(net)
+        subprocess.call(cmd)
+    return
+
+
+class Device(object):
+    def __init__(self, name):
+        LOG.debug('Constructing device %s', name)
+        self.name = name
+        # Setting up defaults
+        self.image = CEOS_IMAGE
+        self.command = "/sbin/init"
+        self.environment = {
+                               "CEOS": 1,
+                               "EOS_PLATFORM": "Docker",
+                               "container": "docker",
+                               "ETBA": 1,
+                               "SKIP_ZEROTOUCH_BARRIER_IN_SYSDBINIT": 1,
+                               "INTFTYPE": "eth"
+                           }
+        # Setting up extra variables
+        self.interfaces = dict()
+        self.volumes = self.get_config()
+        # Checking if container already exists
+        self.container = self.get_container()
+        # If doesn't exist creating a new container
+        if not self.container:
+            self.container = DOCKER.containers.create(
+                self.image,
+                command=self.command,
+                environment=self.environment,
+                volumes=self.volumes,
+                privileged=True,
+                name=self.name,
+                detach=True,
+                hostname=self.name,
+                labels={PREFIX: self.name}
+            )
+
+    def get_container(self):
+        try:
+            return DOCKER.containers.get(self.name)
+        except DOCKER.errors.NotFound:
+            return None
+
+    def get_config(self):
+        startup = os.path.join(CONF_DIR, self.name)
+        if os.path.isfile(startup):
+            return {startup: {
+                            'bind': "/mnt/flash/startup-config",
+                            'mode': 'ro'}
+                    }
+        else:
+            return {}
+
+    def start(self):
+        LOG.debug('Starting container {}'.format(self.name))
+        if self.container.status == 'running':
+            LOG.info('Container %s already running', self.name)
+            return 1
+        self.attach()
+        self.container.start()
+        return 0
+
+    def connect(self, interface, link):
+        self.interfaces[interface] = link
+        return
+
+    def attach(self):
+        for interface in sorted(self.interfaces):
+            LOG.debug('Attaching container {} interface {} to its link'
+                      .format(self.name, interface))
+            link = self.interfaces[interface]
+            link.connect(self.container)
+        return
+
+    def stop(self):
+        if self.container.status != 'running':
+            LOG.info('Container %s is not running', self.name)
+            return 1
+        self.container.stop()
+        return 0
+
+
+class Link(object):
+    def __init__(self, link_type, name):
+        LOG.debug('Constructing a %s link with name %s', link_type, name)
+        self.name = name
+        self.link_type = link_type
+        found_net = self.get_network()
+        if not found_net:
+            self.network = DOCKER.networks.create(
+                self.name,
+                driver='bridge',
+                labels={PREFIX: self.name}
+            )
+
+    def get_network(self):
+        try:
+            return self.name == DOCKER.networks.get(self.name)
+        except DOCKER.errors.NotFound:
+            return None
+
+    def connect(self, device):
+        LOG.debug('Connecting link to {}'.format(device.name))
+        return self.network.connect(device)
+
+
+def main():
+    # Initializing main variables
+    global CHECK
+    devices = dict()
+    links = list()
+
+    # Assigning arguments
+    args = parse_args()
+    debug = args.debug
+    create = args.create
+    t_file = os.path.join(os.getcwd(), args.topology)
+    destroy = args.destroy
+
+    # Logging settings
+    if debug:
+        log_level = logging.DEBUG
+    else:
+        log_level = logging.INFO
+    logging.basicConfig(level=log_level)
+    logger = logging.getLogger(__name__)
+
+    # Loading topology YAML file
+    with open(t_file, 'r') as stream:
+        t_yml = yaml.load(stream)
+    logger.debug("Loaded topology from YAML file {}\n {}"
+                 .format(t_file, yaml.dump(t_yml)))
+    if 'p2p' not in t_yml:
+        logger.info('"p2p" dictionary is not found in {}'
+                    .format(t_file))
+        return 1
+
+    # Parsing P2P links in the format ["Device-A:Interface-1", "Device-B:Interface-3"]
+    for idx, link_dsc in enumerate(t_yml['p2p']):
+        if len(link_dsc) != 2:
+            logger.info('p2p links must contain two elements, found {} in {}'
+                        .format(len(link_dsc), link_dsc))
+            return 1
+        link = Link('p2p', 'net-p2p-{}'.format(idx))
+        links.append(link)
+        for endpoint in link_dsc:
+            ep = endpoint.split(':')
+            if len(ep) != 2:
+                logger.info('p2p link endpoints must contain two elements , found {} in {}'
+                            .format(len(ep), endpoint))
+                return 1
+            # Creating device and attach its interface to a link
+            device_name, int_name = ep
+            device = devices.get(device_name, Device(device_name))
+            device.connect(int_name, link)
+            devices[device_name] = device
+
+    # Main logic
+    if create:
+        started = [device.start() == 0 for (name, device) in devices.items()]
+        if all(started):
+            LOG.info('All devices started successfully')
+            enable_lldp(links)
+            return 0
+        else:
+            LOG.info('Devices have not been started')
+            return 1
+    if destroy:
+        stopped = [device.stop() == 0 for (name, device) in devices.items()]
+        # Regardless of whether we stopped or not, try to prune unused objects
+        DOCKER.networks.prune(
+            filters={'label': PREFIX}
+        )
+        DOCKER.containers.prune(
+            filters={'label': PREFIX}
+        )
+        if all(stopped):
+            LOG.info('All devices stopped successfully')
+            return 0
+        else:
+            LOG.info('Devices have not been stopped')
+            return 1
+
+
+if __name__ == '__main__':
+    main()

@@ -1,0 +1,3 @@
+p2p:
+  - ["Device-A:Interface-1", "Device-B:Interface-2"]
+  - ["Device-A:Interface-2", "Device-B:Interface-1"]
