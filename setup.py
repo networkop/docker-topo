@@ -7,7 +7,7 @@ setup(
     install_requires=[
         'argparse',
         'logging',
-        'PyYAML',
+        'pyyaml',
         'docker'
     ],
     package_data={'': ['*.yml']},
