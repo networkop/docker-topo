@@ -3,7 +3,7 @@ from setuptools import setup
 setup(
     name='arista-ceoslab',
     version='1.0',
-    scripts=['topo-ceos'],
+    scripts=['ceos-topo'],
     install_requires=[
         'argparse',
         'logging',
