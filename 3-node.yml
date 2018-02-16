@@ -1,4 +1,4 @@
 p2p:
-  - ["Device-A:Interface-1", "Device-B:Interface-2"]
-  - ["Device-A:Interface-2", "Device-C:Interface-1"]
-  - ["Device-B:Interface-1", "Device-C:Interface-2"]
+  - ["Device-A:Ethernet1", "Device-B:Ethernet2"]
+  - ["Device-A:Ethernet2", "Device-C:Ethernet1"]
+  - ["Device-B:Ethernet1", "Device-C:Ethernet2"]
