@@ -5,8 +5,6 @@ setup(
     version='1.0',
     scripts=['ceos-topo'],
     install_requires=[
-        'argparse',
-        'logging',
         'pyyaml',
         'docker'
     ],
