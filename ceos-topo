@@ -95,6 +95,8 @@ class Device(object):
 
     def get_config(self):
         startup = os.path.join(CONF_DIR, self.name)
+        # Docker requires absolute path in volumes
+        startup = os.path.abspath(startup)
         if os.path.isfile(startup):
             return {startup: {
                             'bind': "/mnt/flash/startup-config",
