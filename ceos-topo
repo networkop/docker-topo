@@ -43,14 +43,14 @@ def enable_lldp(networks):
     import subprocess
     for each in networks:
         cmd = 'echo 16384 > /sys/class/net/br-{}/bridge/group_fwd_mask'.format(each.network.id[:12])
-        subprocess.run(cmd, shell=True)
+        subprocess.call(cmd, shell=True)
     return
 
 
 def kill_agetty():
     import subprocess
     cmd = 'pkill agetty'
-    subprocess.run(cmd, shell=True)
+    subprocess.call(cmd, shell=True)
     return
 
 class Device(object):
@@ -192,8 +192,8 @@ def main():
 
     # Loading optional variables
     CONF_DIR = t_yml.get('CONF_DIR', CONF_DIR)
-    CONF_DIR = t_yml.get('PREFIX', PREFIX)
-    CONF_DIR = t_yml.get('CONF_DIR', CONF_DIR)
+    PREFIX = t_yml.get('PREFIX', PREFIX)
+    CEOS_IMAGE = t_yml.get('CEOS_IMAGE', CEOS_IMAGE)
 
     # Parsing links in the format ["Device-A:Interface-1", "Device-B:Interface-3"]
     for idx, link_dsc in enumerate(t_yml['links']):
