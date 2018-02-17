@@ -8,7 +8,9 @@ setup(
         'pyyaml',
         'docker'
     ],
-    data_files=[('examples', ['2-node.yml','3-node.yml'])],
+    data_files=[('examples', ['2-node.yml',
+                              '3-node.yml',
+                              '5-node-ls.yml'])],
     url='https://github.com/networkop/arista-ceos-topo',
     license='BSD3',
     author='Michael Kashin',

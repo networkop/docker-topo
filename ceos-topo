@@ -9,7 +9,7 @@ LOG = logging.getLogger(__name__)
 DOCKER = docker.from_env()
 CONF_DIR = './config'
 PREFIX = 'CEOS-LAB'
-CEOS_IMAGE = 'veos:latest'
+CEOS_IMAGE = 'ceos:latest'
 
 
 def parse_args():
@@ -43,14 +43,14 @@ def enable_lldp(networks):
     import subprocess
     for each in networks:
         cmd = 'echo 16384 > /sys/class/net/br-{}/bridge/group_fwd_mask'.format(each.network.id[:12])
-        subprocess.call(cmd, shell=True)
+        subprocess.run(cmd, shell=True)
     return
 
 
 def kill_agetty():
     import subprocess
     cmd = 'pkill agetty'
-    subprocess.call(cmd, shell=True)
+    subprocess.run(cmd, shell=True)
     return
 
 class Device(object):
@@ -160,7 +160,7 @@ class Link(object):
 
 def main():
     # Initializing main variables
-    global PREFIX
+    global PREFIX, CEOS_IMAGE, CONF_DIR
     devices = dict()
     links = list()
 
@@ -185,16 +185,21 @@ def main():
         t_yml = yaml.load(stream)
     logger.debug("Loaded topology from YAML file {}\n {}"
                  .format(t_file, yaml.dump(t_yml)))
-    if 'p2p' not in t_yml:
-        logger.info('"p2p" dictionary is not found in {}'
+    if 'links' not in t_yml:
+        logger.info('"link" dictionary is not found in {}'
                     .format(t_file))
         return 1
 
-    # Parsing P2P links in the format ["Device-A:Interface-1", "Device-B:Interface-3"]
-    for idx, link_dsc in enumerate(t_yml['p2p']):
+    # Loading optional variables
+    CONF_DIR = t_yml.get('CONF_DIR', CONF_DIR)
+    CONF_DIR = t_yml.get('PREFIX', PREFIX)
+    CONF_DIR = t_yml.get('CONF_DIR', CONF_DIR)
+
+    # Parsing links in the format ["Device-A:Interface-1", "Device-B:Interface-3"]
+    for idx, link_dsc in enumerate(t_yml['links']):
         if len(link_dsc) != 2:
-            logger.info('p2p links must contain two elements, found {} in {}'
-                        .format(len(link_dsc), link_dsc))
+            logger.info('Only P2P links are supported, incorrect link description {}'
+                        .format(link_dsc))
             return 1
         link = Link('p2p', 'net-p2p-{}'.format(idx))
         links.append(link)
@@ -204,7 +209,7 @@ def main():
                 logger.info('p2p link endpoints must contain two elements , found {} in {}'
                             .format(len(ep), endpoint))
                 return 1
-            # Creating device and attach its interface to a link
+            # Creating device and attaching its interface to a link
             device_name, int_name = ep
             device = devices.get(device_name, Device(device_name))
             device.connect(int_name, link)
