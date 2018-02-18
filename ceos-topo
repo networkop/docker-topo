@@ -53,6 +53,7 @@ def kill_agetty():
     subprocess.call(cmd, shell=True)
     return
 
+
 class Device(object):
     def __init__(self, name):
         LOG.debug('Constructing device {}'.format(name))
@@ -70,12 +71,16 @@ class Device(object):
                            }
         # Setting up extra variables
         self.interfaces = dict()
-        self.volumes = self.get_config()
+        self.volumes = self._get_config()
+        self.ports = dict()
+
+    def _create(self):
+        LOG.debug('Obtaining a pointer to container {}'.format(self.name))
         # Checking if container already exists
-        self.container = self.get_container()
+        container = self._get_container()
         # If doesn't exist creating a new container
-        if not self.container:
-            self.container = DOCKER.containers.create(
+        if not container:
+            container = DOCKER.containers.create(
                 self.image,
                 command=self.command,
                 environment=self.environment,
@@ -84,16 +89,18 @@ class Device(object):
                 name=self.name,
                 detach=True,
                 hostname=self.name,
+                ports=self.ports,
                 labels={PREFIX: self.name}
             )
+        return container
 
-    def get_container(self):
+    def _get_container(self):
         try:
             return DOCKER.containers.get(self.name)
         except docker.errors.NotFound:
             return None
 
-    def get_config(self):
+    def _get_config(self):
         startup = os.path.join(CONF_DIR, self.name)
         # Docker requires absolute path in volumes
         startup = os.path.abspath(startup)
@@ -107,36 +114,41 @@ class Device(object):
 
     def start(self):
         LOG.debug('Starting container {}'.format(self.name))
-        if self.container.status == 'running':
+        container = self._create()
+        if container.status == 'running':
             LOG.info('Container {} already running'.format(self.name))
             return 1
-        self.attach()
-        self.container.start()
+        self._attach(container)
+        container.start()
         return 0
 
     def connect(self, interface, link):
+        LOG.debug('Creating a pointer to network {}'.format(link.name))
         self.interfaces[interface] = link
         return
 
-    def attach(self):
+    def _attach(self, container):
         for interface in sorted(self.interfaces):
             LOG.debug('Attaching container {} interface {} to its link'
                       .format(self.name, interface))
             link = self.interfaces[interface]
-            link.connect(self.container)
+            link.connect(container)
         return
 
     def stop(self):
-        if self.container.status != 'running':
+        LOG.debug('Stopping container {}'.format(self.name))
+        container = self._create()
+        if container.status != 'running':
             LOG.info('Container {} is not running'.format(self.name))
+            DOCKER.containers.prune(
+                filters={'label': PREFIX}
+            )
             return 1
-        self.container.stop()
+        container.stop()
         return 0
 
     def publish_port(self, inside, outside, proto='tcp'):
-        ports = self.container.get('ports', dict())
-        ports['{}/{}'.format(inside, proto)] = outside
-        return
+        self.ports['{}/{}'.format(inside, proto)] = outside
 
 
 class Link(object):
@@ -183,15 +195,14 @@ def main():
     else:
         log_level = logging.INFO
     logging.basicConfig(level=log_level)
-    logger = logging.getLogger(__name__)
 
     # Loading topology YAML file
     with open(t_file, 'r') as stream:
         t_yml = yaml.load(stream)
-    logger.debug("Loaded topology from YAML file {}\n {}"
+    LOG.debug("Loaded topology from YAML file {}\n {}"
                  .format(t_file, yaml.dump(t_yml)))
     if 'links' not in t_yml:
-        logger.info('"link" dictionary is not found in {}'
+        LOG.info('"link" dictionary is not found in {}'
                     .format(t_file))
         return 1
 
@@ -203,7 +214,7 @@ def main():
     # Parsing links in the format ["Device-A:Interface-1", "Device-B:Interface-3"]
     for idx, link_dsc in enumerate(t_yml['links']):
         if len(link_dsc) != 2:
-            logger.info('Only P2P links are supported, incorrect link description {}'
+            LOG.info('Only P2P links are supported, incorrect link description {}'
                         .format(link_dsc))
             return 1
         link = Link('p2p', 'net-p2p-{}'.format(idx))
@@ -211,7 +222,7 @@ def main():
         for endpoint in link_dsc:
             ep = endpoint.split(':')
             if len(ep) != 2:
-                logger.info('p2p link endpoints must contain two elements , found {} in {}'
+                LOG.info('p2p link endpoints must contain two elements , found {} in {}'
                             .format(len(ep), endpoint))
                 return 1
             # Creating device and attaching its interface to a link
@@ -221,14 +232,14 @@ def main():
             devices[device_name] = device
 
     # Publishing ports.
-    publish_base = t_yml('publish_base', None)
+    publish_base = t_yml.get('publish_base', None)
     # If 'publish_base' variable is defined in YAML file
     if publish_base:
         # Sort all device names alphabetically
-        for idx,device in enumerate(sorted(devices.keys())):
+        for idx,name in enumerate(sorted(devices.keys())):
             # Publish internal HTTPS port to external base
             # port offset by device's index
-            device.publish_port('443',publish_base+idx)
+            devices[name].publish_port('443',publish_base+idx)
 
     # Main logic
     if create:
