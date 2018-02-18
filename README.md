@@ -54,6 +54,22 @@ If none of the variables are found in the topology file, the following defaults 
 * PREFIX = 'CEOS-LAB'
 * CEOS_IMAGE = 'ceos:latest'
 
+# (Optional) Publishing ports
+By default all containers will start without published ports.
+In order to publish ports, an optional variable `publish_base`
+needs to be defined. All devices will then be sorted alphabetically
+using their names and internal HTTPS port will be published to 
+external base port offset by device's sequence number. 
+Example of how to setup port publishing:
+```yaml
+publish_base: 8000
+```
+For the case of 3 containers, the above will result in the following
+mapping:
+* cEOS-1 port 443 - Docker host port 8000
+* cEOS-2 port 443 - Docker host port 8001
+* cEOS-3 port 443 - Docker host port 8002
+
 # Example 1 - Creating a 2-node topology (without config)
 
 ```text

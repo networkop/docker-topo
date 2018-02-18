@@ -133,6 +133,11 @@ class Device(object):
         self.container.stop()
         return 0
 
+    def publish_port(self, inside, outside, proto='tcp'):
+        ports = self.container.get('ports', dict())
+        ports['{}/{}'.format(inside, proto)] = outside
+        return
+
 
 class Link(object):
     def __init__(self, link_type, name):
@@ -214,6 +219,16 @@ def main():
             device = devices.get(device_name, Device(device_name))
             device.connect(int_name, link)
             devices[device_name] = device
+
+    # Publishing ports.
+    publish_base = t_yml('publish_base', None)
+    # If 'publish_base' variable is defined in YAML file
+    if publish_base:
+        # Sort all device names alphabetically
+        for idx,device in enumerate(sorted(devices.keys())):
+            # Publish internal HTTPS port to external base
+            # port offset by device's index
+            device.publish_port('443',publish_base+idx)
 
     # Main logic
     if create:
