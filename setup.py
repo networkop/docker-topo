@@ -1,16 +1,21 @@
 from setuptools import setup
+import os
+
+EXTRA_FILES='arista-ceos-files'
+
+def collect_files():
+    return [(d, [os.path.join(d,f) for f in files])
+            for d, folders, files in os.walk(EXTRA_FILES)]
 
 setup(
     name='arista-ceoslab',
     version='1.0',
-    scripts=['ceos-topo'],
+    scripts=['bin/ceos-topo'],
+    data_files=collect_files(),
     install_requires=[
         'pyyaml',
         'docker'
     ],
-    data_files=[('examples', ['2-node.yml',
-                              '3-node.yml',
-                              '5-node-ls.yml'])],
     url='https://github.com/networkop/arista-ceos-topo',
     license='BSD3',
     author='Michael Kashin',

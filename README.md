@@ -35,7 +35,7 @@ links:
  - ["Device-1:Interface1", "Device-2:Interface1"]
 ```
 
-There should be three topology examples in the `./examples` directory
+There should be three topology examples in the `./arista-ceos-files/examples` directory
 
 # (Optional) Override default variables
 There are three global variables used by the script 
@@ -81,7 +81,7 @@ mapping:
 ```
 
 ```bash
-ceos-topo --create examples/2-node.yml
+ceos-topo --create arista-ceos-files/examples/2-node.yml
 ```
 
 # Example 2 - Creating a 3-node topology (with config)
@@ -102,7 +102,7 @@ mkdir config
 echo "hostname cEOS-1" > ./config/cEOS-1
 echo "hostname cEOS-2" > ./config/cEOS-2
 echo "hostname cEOS-3" > ./config/cEOS-3
-ceos-topo --create examples/3-node.yml
+ceos-topo --create arista-ceos-files/examples/3-node.yml
 ```
 
 # List and connect to devices
@@ -120,5 +120,5 @@ localhost>
 # Destroy a topology
 
 ```bash
-ceos-topo --destroy examples/2-node.yml
+ceos-topo --destroy arista-ceos-files/examples/2-node.yml
 ```
