@@ -3,12 +3,15 @@ common:
    default_route: 172.17.0.1
    dns: [ 8.8.8.8 ]
    ntp: [ 0.fedora.pool.ntp.org, 1.fedora.pool.ntp.org ]
-   device_interface: eth0       # one on which managed devices can reach CVP
+   device_interface: eth1       # one on which managed devices can reach CVP
                                 # This is optional. Defaults to eth0.
 
 node1:
    hostname: cvp.lab
    interfaces:
       eth0:
-         ip_address: 172.17.0.100    # We do not support IPv6 yet
+         ip_address: 172.17.0.254    # We do not support IPv6 yet
          netmask: 255.255.0.0
+      eth1:
+         ip_address: 192.168.0.254   # We do not support IPv6 yet
+         netmask: 255.255.255.0
