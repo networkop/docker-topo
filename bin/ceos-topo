@@ -217,7 +217,7 @@ class Link(object):
 
 def main():
     # Initializing main variables
-    global PREFIX, CEOS_IMAGE, CONF_DIR
+    global PREFIX, CEOS_IMAGE, CONF_DIR, CVP_ON
     devices = dict()
     links = list()
 
@@ -271,7 +271,9 @@ def main():
                 LOG.info('Link contains empty definition')
                 return 1
             device_name = ep.pop(0)
-            if 'host' in device_name.lower():
+            if 'cvp' in device_name.lower():
+                device = devices.get(device_name, CVP(device_name))
+            elif 'host' in device_name.lower():
                 device = devices.get(device_name, Host(device_name))
             else:
                 device = devices.get(device_name, CEOS(device_name))

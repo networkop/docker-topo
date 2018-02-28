@@ -38,14 +38,14 @@ done
 
 teamd -v 
 
-ip link set eth0 down
 ip link set eth1 down
+ip link set eth2 down
 
 cat << EOF > /home/alpine/teamd-static.conf
 {
  "device": "team0",
  "runner": {"name": "roundrobin"},
- "ports": {"eth0": {}, "eth1": {}}
+ "ports": {"eth1": {}, "eth2": {}}
 }
 EOF
 
@@ -59,7 +59,7 @@ cat << EOF > /home/alpine/teamd-lacp.conf
        "tx_hash": ["eth", "ipv4", "ipv6"]
    },
      "link_watch": {"name": "ethtool"},
-     "ports": {"eth0": {}, "eth1": {}}
+     "ports": {"eth1": {}, "eth2": {}}
 }
 EOF
 
