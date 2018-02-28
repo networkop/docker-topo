@@ -213,7 +213,7 @@ class CVP(Device):
         # As a arguments to entrypoint.sh in order for
         # the answer file to be updated correctly
         network = DOCKER.networks.get('bridge')
-        ipam_attr = network.attrs['IPAM']['Config'].get(0,dict())
+        ipam_attr = network.attrs['IPAM']['Config'].pop()
         if not ipam_attr:
             LOG.info("Cannot find IPAM attributes for the \
                       (default) network 'bridge'")
