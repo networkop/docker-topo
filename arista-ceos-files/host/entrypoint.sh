@@ -4,13 +4,7 @@
 # Parse arguments
 #################
 
-IP=$1
-TMODE=$2
-
-if [ -z "$IP" ]; then
-  echo "IP address not set!"
-  return 1
-fi
+TMODE=$1
 
 if [ -z "$TMODE" ]; then
   TMODE='static'
@@ -79,7 +73,12 @@ teamd -d -f $TARG
 
 ip link set team0 up
 
-ip addr add $IP dev team0
+$SETIP="/home/alpine/set_ip.sh"
+
+if [ -e "$SETIP" ]; then
+  chmod +x $SETIP
+  $SETIP
+fi
 
 #####################
 # Enter sleeping loop
