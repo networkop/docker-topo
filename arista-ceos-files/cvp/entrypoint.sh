@@ -1,7 +1,16 @@
 #!/bin/bash
 
+IPADDR=${1:-172.17.0.254}
+NETMASK=${2:-255.255.255.0}
+GW=${3:-172.17.0.1}
+
+# Fill in the real IP values to be used by CVP VM
+sed -i "s/IPADDR/${IPADDR}" /tmp/answers.yaml
+sed -i "s/NETMASK/${IPADDR}" /tmp/answers.yaml
+sed -i "s/GATEWAY/${GW}" /tmp/answers.yaml
+
 # Create bridge for VMs
-/tmp/createNwBridges.py --device-bridge virbr0 --device-nic eth0 --swap-device-nic-ip --force -g 192.168.0.1
+/tmp/createNwBridges.py --device-bridge virbr0 --device-nic eth0 --swap-device-nic-ip --force -g $GW
 
 # Start libvirt services
 /usr/sbin/libvirtd &

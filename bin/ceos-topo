@@ -4,12 +4,14 @@ import logging
 import yaml
 import docker
 import os.path
+import netaddr
 
 LOG = logging.getLogger(__name__)
 DOCKER = docker.from_env()
 CONF_DIR = './config'
 PREFIX = 'CEOS-LAB'
 CEOS_IMAGE = 'ceos:latest'
+CVP = None
 
 
 def parse_args():
@@ -172,7 +174,6 @@ class Host(Device):
         self.image = 'alpine-host:latest'
         self.volumes = self._get_config()
 
-
     def _get_config(self):
         startup = os.path.join(CONF_DIR, self.name)
         # Docker requires absolute path in volumes
@@ -197,7 +198,7 @@ class Host(Device):
         self.network = self.interfaces.pop(int_name).name
         LOG.debug("The remaining interfaces that will be connected before the start are {}"
                   .format(self.interfaces.keys()))
-        super()._create()
+        return super()._create()
 
 
 class CVP(Device):
@@ -208,17 +209,20 @@ class CVP(Device):
         self.ports = {'443/tcp': 443}
 
     def _create(self):
-        # This code is to override the default behaviour of connecting
-        # the first interface to the default docker bridge
-        # We're pulling the first network name from the list of
-        # interfaces (which should only contain 1 for CVP)
-        # and overriding the default network with this name
-        int_name = next(iter(self.interfaces))
-        LOG.debug("Making {} a default network for {}"
-                  .format(int_name, self.name))
-        self.network = self.interfaces.pop(int_name).name
-        LOG.debug("The remaining interfaces that will be connected before the start are {}"
-                  .format(self.interfaces.keys()))
+        # We need to pass the IP, Netmask and GW settings
+        # As a arguments to entrypoint.sh in order for
+        # the answer file to be updated correctly
+        network = DOCKER.networks.get('bridge')
+        ipam_attr = network.attrs['IPAM']['Config'].get(0,dict())
+        if not ipam_attr:
+            LOG.info("Cannot find IPAM attributes for the \
+                      (default) network 'bridge'")
+        gateway = ipam_attr['Gateway']
+        network = netaddr.IPNetwork(ipam_attr['Subnet'])
+        netmask = network.netmask
+        # CVP will have a hard-coded last IP of the subnet
+        ipaddr = network[-1]
+        self.command = [str(ipaddr), str(netmask), str(gateway)]
         return super()._create()
 
 
@@ -248,7 +252,7 @@ class Link(object):
 
 def main():
     # Initializing main variables
-    global PREFIX, CEOS_IMAGE, CONF_DIR
+    global PREFIX, CEOS_IMAGE, CONF_DIR, CVP
     devices = dict()
     links = list()
 
@@ -281,6 +285,12 @@ def main():
     CONF_DIR = t_yml.get('CONF_DIR', CONF_DIR)
     PREFIX = t_yml.get('PREFIX', PREFIX)
     CEOS_IMAGE = t_yml.get('CEOS_IMAGE', CEOS_IMAGE)
+    CVP = t_yml.get('CEOS_IMAGE', CVP)
+
+    # CVP instantiation logic
+    if CVP:
+        cvp = CVP('cvp')
+        devices['cvp'] = cvp
 
     # Parsing links in the format ["Device-A:Interface-1", "Device-B:Interface-3"]
     # Or ["Device-A:Interface-1", "cvp-1", "host-1", "host-2:Eth1", "host-2:Eth2"]
@@ -296,9 +306,9 @@ def main():
                 LOG.info('Link contains empty definition')
                 return 1
             device_name = ep.pop(0)
-            if 'cvp' in device_name.lower():
-                device = devices.get(device_name, CVP(device_name))
-            elif 'host' in device_name.lower():
+            # if 'cvp' in device_name.lower():
+            #    device = devices.get(device_name, CVP(device_name))
+            if 'host' in device_name.lower():
                 device = devices.get(device_name, Host(device_name))
             else:
                 device = devices.get(device_name, CEOS(device_name))
