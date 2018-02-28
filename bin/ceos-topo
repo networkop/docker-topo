@@ -10,6 +10,7 @@ DOCKER = docker.from_env()
 CONF_DIR = './config'
 PREFIX = 'CEOS-LAB'
 CEOS_IMAGE = 'ceos:latest'
+CVP_ON = None
 
 
 def parse_args():
@@ -67,6 +68,7 @@ class Device(object):
         self.volumes = dict()
         self.ports = dict()
         self.sequence = 0
+        self.network_mode = 'none'
 
     def _create(self):
         LOG.debug('Obtaining a pointer to container {}'.format(self.name))
@@ -248,6 +250,12 @@ def main():
     CONF_DIR = t_yml.get('CONF_DIR', CONF_DIR)
     PREFIX = t_yml.get('PREFIX', PREFIX)
     CEOS_IMAGE = t_yml.get('CEOS_IMAGE', CEOS_IMAGE)
+    CVP_ON = t_yml.get('CVP', CVP_ON)
+
+    # CVP enabling logic
+    if CVP_ON:
+        device = CVP('cvp')
+        devices['cvp'] = device
 
     # Parsing links in the format ["Device-A:Interface-1", "Device-B:Interface-3"]
     # Or ["Device-A:Interface-1", "cvp-1", "host-1", "host-2:Eth1", "host-2:Eth2"]
@@ -263,9 +271,7 @@ def main():
                 LOG.info('Link contains empty definition')
                 return 1
             device_name = ep.pop(0)
-            if 'cvp' in device_name.lower():
-                device = devices.get(device_name, CVP(device_name))
-            elif 'host' in device_name.lower():
+            if 'host' in device_name.lower():
                 device = devices.get(device_name, Host(device_name))
             else:
                 device = devices.get(device_name, CEOS(device_name))

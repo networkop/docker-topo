@@ -3,3 +3,4 @@ links:
   - ["Device-A:Interface-2", "Device-B:Interface-1"]
 
 CEOS_IMAGE: veos:latest
+CVP: yes
