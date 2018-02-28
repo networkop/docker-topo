@@ -131,9 +131,6 @@ class Device(object):
         container.stop()
         return 0
 
-    def publish_port(self, inside, outside, proto='tcp'):
-        self.ports['{}/{}'.format(inside, proto)] = outside
-
 
 class CEOS(Device):
     def __init__(self, name):
@@ -164,6 +161,9 @@ class CEOS(Device):
         else:
             return {}
 
+    def publish_port(self, inside, outside, proto='tcp'):
+        self.ports['{}/{}'.format(inside, proto)] = outside
+
 
 class Host(Device):
     def __init__(self, name):
@@ -171,6 +171,7 @@ class Host(Device):
         # Overriding defaults
         self.image = 'alpine-host:latest'
         self.volumes = self._get_config()
+
 
     def _get_config(self):
         startup = os.path.join(CONF_DIR, self.name)
@@ -204,6 +205,7 @@ class CVP(Device):
         super().__init__(name)
         # Overriding defaults
         self.image = 'cvp:latest'
+        self.ports = {'443/tcp': 443}
 
     def _create(self):
         # This code is to override the default behaviour of connecting
