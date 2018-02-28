@@ -262,7 +262,7 @@ def main():
             if not ep:
                 LOG.info('Link contains empty definition')
                 return 1
-            device_name = ep.pop()
+            device_name = ep.pop(0)
             if 'cvp' in device_name.lower():
                 device = devices.get(device_name, CVP(device_name))
             elif 'host' in device_name.lower():
