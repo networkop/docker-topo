@@ -285,10 +285,11 @@ def main():
     CONF_DIR = t_yml.get('CONF_DIR', CONF_DIR)
     PREFIX = t_yml.get('PREFIX', PREFIX)
     CEOS_IMAGE = t_yml.get('CEOS_IMAGE', CEOS_IMAGE)
-    CVP = t_yml.get('CVP', CVP_ON)
+    CVP_ON = t_yml.get('CVP', CVP_ON)
 
     # CVP instantiation logic
     if CVP_ON:
+        LOG.debug("Creating CVP device")
         cvp = CVP('cvp')
         devices['cvp'] = cvp
 
