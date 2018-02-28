@@ -11,4 +11,4 @@ node1:
    interfaces:
       eth0:
          ip_address: IPADDR
-         netmask: GATEWAY
+         netmask: NETMASK

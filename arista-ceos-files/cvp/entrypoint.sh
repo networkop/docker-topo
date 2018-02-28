@@ -6,21 +6,21 @@ GW=${3:-172.17.0.1}
 
 # Fill in the real IP values to be used by CVP VM
 sed -i "s/IPADDR/${IPADDR}/" /tmp/answers.yaml
-sed -i "s/NETMASK/${IPADDR}/" /tmp/answers.yaml
+sed -i "s/NETMASK/${NETMASK}/" /tmp/answers.yaml
 sed -i "s/GATEWAY/${GW}/" /tmp/answers.yaml
 
 # Create bridge for VMs
 /tmp/createNwBridges.py --device-bridge virbr0 --device-nic eth0 --swap-device-nic-ip --force -g $GW
 
 # Generate ISO
-RUN /tmp/geniso.py  -y /tmp/answers.yaml -p cvpadmin -o /tmp/
+/tmp/geniso.py  -y /tmp/answers.yaml -p cvpadmin -o /tmp/
 
 # Generate libvirt XML
-RUN /tmp/generateXmlForKvm.py -n cvp \
-    --device-bridge virbr0 -i /tmp/cvxTemplate.xml -o result.xml \
-    -x /tmp/disk1.qcow2 -y /tmp/disk2.qcow2 -c /tmp/node1-cvp.iso \
-    -b 10240 -p 2 \
-    -e /usr/libexec/qemu-kvm
+/tmp/generateXmlForKvm.py -n cvp \
+--device-bridge virbr0 -i /tmp/cvxTemplate.xml -o result.xml \
+-x /tmp/disk1.qcow2 -y /tmp/disk2.qcow2 -c /tmp/node1-cvp.iso \
+-b 10240 -p 2 \
+-e /usr/libexec/qemu-kvm
 
 # Start libvirt services
 /usr/sbin/libvirtd &
