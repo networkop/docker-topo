@@ -4,13 +4,18 @@ IPADDR=${1:-172.17.0.253}
 NETMASK=${2:-255.255.255.0}
 GW=${3:-172.17.0.1}
 
+# Steal the dhcp IP off the main interface
+IPADDR=$(ip route get 8.8.8.8 | awk 'NR==1 {print $NF}')
+
+# TODO unset the stolen IP off the main interface
+
 # Fill in the real IP values to be used by CVP VM
 sed -i "s/IPADDR/${IPADDR}/" /tmp/answers.yaml
 sed -i "s/NETMASK/${NETMASK}/" /tmp/answers.yaml
 sed -i "s/GATEWAY/${GW}/" /tmp/answers.yaml
 
 # Create bridge for VMs
-/tmp/createNwBridges.py --device-bridge virbr0 --device-nic eth0 --swap-device-nic-ip --force -g $GW
+/tmp/createNwBridges.py --device-bridge virbr0 --device-nic eth0 --force
 
 # Generate ISO
 /tmp/geniso.py  -y /tmp/answers.yaml -p cvpadmin -o /tmp/
