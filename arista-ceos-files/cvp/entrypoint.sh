@@ -1,8 +1,7 @@
 #!/bin/bash
 
 # Create bridge for VMs
-/tmp/createNwBridges.py --device-bridge virbr0 --device-nic eth0 --swap-device-nic-ip --force -g 172.17.0.1
-/tmp/createNwBridges.py --device-bridge virbr1 --device-nic eth1 --swap-device-nic-ip --force
+/tmp/createNwBridges.py --device-bridge virbr0 --device-nic eth0 --swap-device-nic-ip --force -g 192.168.0.1
 
 # Start libvirt services
 /usr/sbin/libvirtd &

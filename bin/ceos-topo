@@ -10,7 +10,6 @@ DOCKER = docker.from_env()
 CONF_DIR = './config'
 PREFIX = 'CEOS-LAB'
 CEOS_IMAGE = 'ceos:latest'
-CVP_ON = None
 
 
 def parse_args():
@@ -68,7 +67,7 @@ class Device(object):
         self.volumes = dict()
         self.ports = dict()
         self.sequence = 0
-        self.network_mode = 'none'
+        self.network = 'bridge'
 
     def _create(self):
         LOG.debug('Obtaining a pointer to container {}'.format(self.name))
@@ -81,6 +80,7 @@ class Device(object):
                 command=self.command,
                 environment=self.environment,
                 volumes=self.volumes,
+                network=self.network,
                 privileged=True,
                 name=self.name,
                 detach=True,
@@ -184,11 +184,40 @@ class Host(Device):
         else:
             return {}
 
+    def _create(self):
+        # This code is to override the default behaviour of connecting
+        # the first interface to the default docker bridge
+        # We're pulling the first network name from the list of
+        # interfaces (which may contain >1 elements)
+        # and overriding the default network with this name
+        int_name = next(iter(self.interfaces))
+        LOG.debug("Making {} a default network for {}"
+                  .format(int_name, self.name))
+        self.network = self.interfaces.pop(int_name).name
+        LOG.debug("The remaining interfaces that will be connected before the start are {}"
+                  .format(self.interfaces.keys()))
+        super()._create()
+
+
 class CVP(Device):
     def __init__(self, name):
         super().__init__(name)
         # Overriding defaults
         self.image = 'cvp:latest'
+
+    def _create(self):
+        # This code is to override the default behaviour of connecting
+        # the first interface to the default docker bridge
+        # We're pulling the first network name from the list of
+        # interfaces (which should only contain 1 for CVP)
+        # and overriding the default network with this name
+        int_name = next(iter(self.interfaces))
+        LOG.debug("Making {} a default network for {}"
+                  .format(int_name, self.name))
+        self.network = self.interfaces.pop(int_name).name
+        LOG.debug("The remaining interfaces that will be connected before the start are {}"
+                  .format(self.interfaces.keys()))
+        super()._create()
 
 
 class Link(object):
@@ -217,7 +246,7 @@ class Link(object):
 
 def main():
     # Initializing main variables
-    global PREFIX, CEOS_IMAGE, CONF_DIR, CVP_ON
+    global PREFIX, CEOS_IMAGE, CONF_DIR
     devices = dict()
     links = list()
 
@@ -250,12 +279,6 @@ def main():
     CONF_DIR = t_yml.get('CONF_DIR', CONF_DIR)
     PREFIX = t_yml.get('PREFIX', PREFIX)
     CEOS_IMAGE = t_yml.get('CEOS_IMAGE', CEOS_IMAGE)
-    CVP_ON = t_yml.get('CVP', CVP_ON)
-
-    # CVP enabling logic
-    if CVP_ON:
-        device = CVP('cvp')
-        devices['cvp'] = device
 
     # Parsing links in the format ["Device-A:Interface-1", "Device-B:Interface-3"]
     # Or ["Device-A:Interface-1", "cvp-1", "host-1", "host-2:Eth1", "host-2:Eth2"]
