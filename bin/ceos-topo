@@ -11,7 +11,7 @@ DOCKER = docker.from_env()
 CONF_DIR = './config'
 PREFIX = 'CEOS-LAB'
 CEOS_IMAGE = 'ceos:latest'
-CVP = None
+CVP_ON = None
 
 
 def parse_args():
@@ -252,7 +252,7 @@ class Link(object):
 
 def main():
     # Initializing main variables
-    global PREFIX, CEOS_IMAGE, CONF_DIR, CVP
+    global PREFIX, CEOS_IMAGE, CONF_DIR, CVP_ON
     devices = dict()
     links = list()
 
@@ -285,10 +285,10 @@ def main():
     CONF_DIR = t_yml.get('CONF_DIR', CONF_DIR)
     PREFIX = t_yml.get('PREFIX', PREFIX)
     CEOS_IMAGE = t_yml.get('CEOS_IMAGE', CEOS_IMAGE)
-    CVP = t_yml.get('CEOS_IMAGE', CVP)
+    CVP = t_yml.get('CVP', CVP_ON)
 
     # CVP instantiation logic
-    if CVP:
+    if CVP_ON:
         cvp = CVP('cvp')
         devices['cvp'] = cvp
 

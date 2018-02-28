@@ -14,7 +14,8 @@ setup(
     data_files=collect_files(),
     install_requires=[
         'pyyaml',
-        'docker'
+        'docker',
+        'netaddr'
     ],
     url='https://github.com/networkop/arista-ceos-topo',
     license='BSD3',
