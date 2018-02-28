@@ -217,7 +217,7 @@ class CVP(Device):
         self.network = self.interfaces.pop(int_name).name
         LOG.debug("The remaining interfaces that will be connected before the start are {}"
                   .format(self.interfaces.keys()))
-        super()._create()
+        return super()._create()
 
 
 class Link(object):
@@ -284,9 +284,9 @@ def main():
     # Or ["Device-A:Interface-1", "cvp-1", "host-1", "host-2:Eth1", "host-2:Eth2"]
     for idx, link_dsc in enumerate(t_yml['links']):
         if len(link_dsc) == 2:
-            link = Link('p2p', 'net-p2p-{}'.format(idx))
+            link = Link('p2p', 'net-{}'.format(idx))
         else:
-            link = Link('mpoint', 'net-mp-{}'.format(idx))
+            link = Link('mpoint', 'net-{}'.format(idx))
         links.append(link)
         for endpoint in link_dsc:
             ep = endpoint.split(':')
