@@ -16,7 +16,10 @@ sed -i "s/NETMASK/${NETMASK}/" /tmp/answers.yaml
 sed -i "s/GATEWAY/${GW}/" /tmp/answers.yaml
 
 # Create bridge for VMs
-/tmp/createNwBridges.py --device-bridge virbr0 --device-nic eth0 --force
+# /tmp/createNwBridges.py --device-bridge virbr0 --device-nic eth0 --force
+brctl addbr virbr0
+brctl addif virbr0 eth0
+ip link set dev virbr0 up
 
 # Generate ISO
 /tmp/geniso.py  -y /tmp/answers.yaml -p cvpadmin -o /tmp/
