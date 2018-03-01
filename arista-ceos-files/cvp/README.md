@@ -18,13 +18,7 @@ Have only been tested with 2017.2.3
 docker run -d --name cvp --privileged cvp
 ```
 
-The mostly default docker bridge subnet `172.17.0.0/16` is hardcoded in the entrypoint script.
-In order to override the IP, netmask and gateway settings, provide them as command
-line arguments (will it work? this will break to published ports):
-
-```bash
-docker run -d --name cvp --privileged cvp 192.168.0.100 255.255.255.0 192.168.0.1
-```
+The entrypoint script will steal the DHCP IP off the container's default interface.
 
 Allow up to 5 minutes to boot
 
