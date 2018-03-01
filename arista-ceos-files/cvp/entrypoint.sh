@@ -2,7 +2,7 @@
 
 # Steal the DHCP IP off the first 2 interfaces
 IPADDR_1=$(ip route get 8.8.8.8 | awk 'NR==1 {print $NF}')
-NETMASK_1=$(ifconfig | grep $IP | awk 'NR==1 {print $4}')
+NETMASK_1=$(ifconfig | grep $IPADDR_1 | awk 'NR==1 {print $4}')
 GW=$(ip route get 8.8.8.8 | awk 'NR==1 {print $3}')
 
 IPADDR_2=$(ifconfig eth1 | awk 'NR==2 {print $2}')
