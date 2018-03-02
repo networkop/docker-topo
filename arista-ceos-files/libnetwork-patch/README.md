@@ -1,4 +1,4 @@
-# Building a customer docker daemon with blackjack and deterministric networks order
+# Building a customer docker daemon with blackjack and deterministric network order
 
 ## Building a patched docker daemon
 
@@ -15,7 +15,8 @@ The above step can be run inside a container (helps with the cleanup)
 ```bash
 docker run --privileged -it centos bash
 git clone https://github.com/networkop/arista-ceos-topo
-cd ari
+cd arista-ceos-topo/arista-ceos-files/libnetwork-patch/
+./build.sh
 ```
 
 ## Replacing the existing docker daemon with the patched one
