@@ -214,10 +214,10 @@ class CVP(Device):
             link = self.interfaces[interface]
             # Patch to make CVP take the last IP from the subnet
             # This is to avoid IP clash on container restart
-            subnet = link.attrs['IPAM']['Config'][0]['Subnet']
+            subnet = link.subnet()
             import netaddr
             last_ip = netaddr.IPNetwork(subnet)[-1]
-            link.network.connect(container, ipv4_address=str(last_ip))
+            link.connect(container, ipv4_address=str(last_ip))
         return
 
 class Link(object):
@@ -232,6 +232,11 @@ class Link(object):
                 driver='bridge',
                 labels={PREFIX: self.name}
             )
+
+    def subnet(self):
+        LOG.debug("Returning the first configured IPAM subnet for network {}"
+                  .format(self.name))
+        return self.network.attrs['IPAM']['Config'][0]['Subnet']
 
     def get_network(self):
         try:
