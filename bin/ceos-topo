@@ -218,9 +218,12 @@ class CVP(Device):
                 subnet = link.subnet()
                 import netaddr
                 last_ip = netaddr.IPNetwork(subnet)[-1]
+                LOG.debug("Link is user-defined, setting CVP address to {}"
+                          .format(str(last_ip)))
                 link.connect(container, ipv4_address=str(last_ip))
             else:
                 # If not user-defined network, then just connect
+                LOG.debug("Link is not user-defined, connecting CVP with DHCP IP")
                 link.connect(container)
         return
 
