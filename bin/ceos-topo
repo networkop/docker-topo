@@ -244,9 +244,9 @@ class Link(object):
         except docker.errors.NotFound:
             return None
 
-    def connect(self, device):
+    def connect(self, device,*args, **kwargs):
         LOG.debug('Connecting link to {}'.format(device.name))
-        return self.network.connect(device)
+        return self.network.connect(device, *args, **kwargs)
 
 
 def main():
