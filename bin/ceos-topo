@@ -217,7 +217,7 @@ class CVP(Device):
             subnet = link.attrs['IPAM']['Config'][0]['Subnet']
             import netaddr
             last_ip = netaddr.IPNetwork(subnet)[-1]
-            link.connect(container, ipv4_address=str(last_ip))
+            link.network.connect(container, ipv4_address=str(last_ip))
         return
 
 class Link(object):
