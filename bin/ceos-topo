@@ -207,6 +207,18 @@ class CVP(Device):
         self.image = 'cvp:latest'
         self.ports = {'443/tcp': 443}
 
+    def _attach(self, container):
+        for interface in sorted(self.interfaces):
+            LOG.debug('Attaching container {} interface {} to its link'
+                      .format(self.name, interface))
+            link = self.interfaces[interface]
+            # Patch to make CVP take the last IP from the subnet
+            # This is to avoid IP clash on container restart
+            subnet = link.attrs['IPAM']['Config'][0]['Subnet']
+            import netaddr
+            last_ip = netaddr.IPNetwork(subnet)[-1]
+            link.connect(container, ipv4_address=str(last_ip))
+        return
 
 class Link(object):
     def __init__(self, link_type, name):
