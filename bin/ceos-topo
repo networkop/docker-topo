@@ -214,16 +214,22 @@ class CVP(Device):
             link = self.interfaces[interface]
             # Patch to make CVP take the last IP from the subnet
             # This is to avoid IP clash on container restart
-            subnet = link.subnet()
-            import netaddr
-            last_ip = netaddr.IPNetwork(subnet)[-1]
-            link.connect(container, ipv4_address=str(last_ip))
+            if link.user_defined:
+                subnet = link.subnet()
+                import netaddr
+                last_ip = netaddr.IPNetwork(subnet)[-1]
+                link.connect(container, ipv4_address=str(last_ip))
+            else:
+                # If not user-defined network, then just connect
+                link.connect(container)
         return
+
 
 class Link(object):
     def __init__(self, link_type, name):
         LOG.debug('Constructing a {} link with name {}'.format(link_type, name))
         self.name = name
+        self.user_defined = False
         self.link_type = link_type
         self.network = self.get_network()
         if not self.network:
@@ -232,6 +238,13 @@ class Link(object):
                 driver='bridge',
                 labels={PREFIX: self.name}
             )
+
+    def set_subnet(self, subnet):
+        ipam_pool = docker.types.IPAMPool(subnet)
+        ipam_config = docker.types.IPAMConfig(pool_configs=[ipam_pool])
+        self.network.attrs['IPAM'] = ipam_config
+        self.user_defined = True
+        return
 
     def subnet(self):
         LOG.debug("Returning the first configured IPAM subnet for network {}"
@@ -301,6 +314,7 @@ def main():
             device_name = ep.pop(0)
             if 'cvp' in device_name.lower():
                 device = devices.get(device_name, CVP(device_name))
+                link.set_subnet('192.168.100.0/24')
             elif 'host' in device_name.lower():
                 device = devices.get(device_name, Host(device_name))
             else:
@@ -308,6 +322,7 @@ def main():
             if ep:
                 int_name = ep.pop()
             else:
+                # Interface name can be optional
                 # Note that this would result in an unpredictable connections
                 # when multiple ports are connected to the same link
                 # To avoid that explicitly specify interface name
