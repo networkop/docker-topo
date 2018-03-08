@@ -217,7 +217,7 @@ class CVP(Device):
             if link.user_defined:
                 subnet = link.subnet()
                 import netaddr
-                last_ip = netaddr.IPNetwork(subnet)[-1]
+                last_ip = netaddr.IPNetwork(subnet)[-2]
                 LOG.debug("Link is user-defined, setting CVP address to {}"
                           .format(str(last_ip)))
                 link.connect(container, ipv4_address=str(last_ip))
