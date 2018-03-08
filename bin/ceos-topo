@@ -69,14 +69,20 @@ class Device(object):
         self.ports = dict()
         self.sequence = 0
         self.network = 'bridge'
+        # Pointer to docker SDK object
+        self.container = None
 
-    def _create(self):
+    def _get_or_create(self):
         LOG.debug('Obtaining a pointer to container {}'.format(self.name))
         # Checking if container already exists
-        container = self._get_container()
+        self.container = self._get()
         # If doesn't exist creating a new container
-        if not container:
-            container = DOCKER.containers.create(
+        if not self.container:
+            self.container = self._create()
+        return
+
+    def _create(self):
+        return DOCKER.containers.create(
                 self.image,
                 command=self.command,
                 environment=self.environment,
@@ -89,9 +95,8 @@ class Device(object):
                 ports=self.ports,
                 labels={PREFIX: self.name}
             )
-        return container
 
-    def _get_container(self):
+    def _get(self):
         try:
             return DOCKER.containers.get(self.name)
         except docker.errors.NotFound:
@@ -99,12 +104,13 @@ class Device(object):
 
     def start(self):
         LOG.debug('Starting container {}'.format(self.name))
-        container = self._create()
-        if container.status == 'running':
+        if not self.container:
+            self._get_or_create()
+        if self.container.status == 'running':
             LOG.info('Container {} already running'.format(self.name))
             return 1
-        self._attach(container)
-        container.start()
+        self._attach()
+        self.container.start()
         return 0
 
     def connect(self, interface, link):
@@ -112,12 +118,12 @@ class Device(object):
         self.interfaces[interface] = link
         return
 
-    def _attach(self, container):
+    def _attach(self):
         for interface in sorted(self.interfaces):
             LOG.debug('Attaching container {} interface {} to its link'
                       .format(self.name, interface))
             link = self.interfaces[interface]
-            link.connect(container)
+            link.connect(self.container)
         return
 
     def stop(self):
@@ -236,17 +242,20 @@ class Link(object):
         self.network = None
         self.subnet = None
 
-    def _create(self):
+    def _get_or_create(self):
         LOG.debug('Obtaining a pointer to network {}'.format(self.name))
-        network = self.get_network()
-        if not network:
-            network = DOCKER.networks.create(
+        network = self._get()
+        if not self.network:
+            self.network = self._create()
+        return
+
+    def _create(self):
+        return DOCKER.networks.create(
                 self.name,
                 driver='bridge',
                 ipam=self.ipam,
                 labels={PREFIX: self.name}
             )
-        return network
 
     def set_subnet(self, subnet):
         self.subnet = subnet
@@ -259,7 +268,7 @@ class Link(object):
                   .format(self.name))
         return self.subnet
 
-    def get_network(self):
+    def _get(self):
         LOG.debug("Trying to find an existing network with name {}".format(self.name))
         try:
             return DOCKER.networks.get(self.name)
@@ -269,7 +278,7 @@ class Link(object):
     def connect(self, device,*args, **kwargs):
         LOG.debug('Connecting link to {}'.format(device.name))
         if not self.network:
-            self.network = self._create()
+            self._get_or_create()
         return self.network.connect(device, *args, **kwargs)
 
 
