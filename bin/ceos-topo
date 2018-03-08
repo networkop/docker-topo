@@ -214,10 +214,9 @@ class CVP(Device):
             link = self.interfaces[interface]
             # Patch to make CVP take the last IP from the subnet
             # This is to avoid IP clash on container restart
-            if link.user_defined:
-                subnet = link.subnet()
+            if link.subnet:
                 import netaddr
-                last_ip = netaddr.IPNetwork(subnet)[-2]
+                last_ip = netaddr.IPNetwork(link.subnet)[-2]
                 LOG.debug("Link is user-defined, setting CVP address to {}"
                           .format(str(last_ip)))
                 link.connect(container, ipv4_address=str(last_ip))
@@ -232,10 +231,10 @@ class Link(object):
     def __init__(self, link_type, name):
         LOG.debug('Constructing a {} link with name {}'.format(link_type, name))
         self.name = name
-        self.user_defined = False
         self.link_type = link_type
         self.ipam = None
         self.network = None
+        self.subnet = None
 
     def _create(self):
         LOG.debug('Obtaining a pointer to network {}'.format(self.name))
@@ -250,15 +249,15 @@ class Link(object):
         return network
 
     def set_subnet(self, subnet):
+        self.subnet = subnet
         ipam_pool = docker.types.IPAMPool(subnet)
         self.ipam = docker.types.IPAMConfig(pool_configs=[ipam_pool])
-        self.user_defined = True
         return
 
     def subnet(self):
         LOG.debug("Returning the first configured IPAM subnet for network {}"
                   .format(self.name))
-        return self.network.attrs['IPAM']['Config'][0]['Subnet']
+        return self.subnet
 
     def get_network(self):
         LOG.debug("Trying to find an existing network with name {}".format(self.name))
