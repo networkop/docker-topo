@@ -234,19 +234,24 @@ class Link(object):
         self.name = name
         self.user_defined = False
         self.link_type = link_type
-        self.network = self.get_network()
-        if not self.network:
-            self.network = DOCKER.networks.create(
+        self.ipam = None
+        self.network = None
+
+    def _create(self):
+        LOG.debug('Obtaining a pointer to network {}'.format(self.name))
+        network = self.get_network()
+        if not network:
+            network = DOCKER.networks.create(
                 self.name,
                 driver='bridge',
+                ipam=self.ipam,
                 labels={PREFIX: self.name}
             )
+        return network
 
     def set_subnet(self, subnet):
         ipam_pool = docker.types.IPAMPool(subnet)
-        ipam_config = docker.types.IPAMConfig(pool_configs=[ipam_pool])
-        self.network.attrs['IPAM'] = ipam_config
-        self.user_defined = True
+        self.ipam = docker.types.IPAMConfig(pool_configs=[ipam_pool])
         return
 
     def subnet(self):
@@ -255,6 +260,7 @@ class Link(object):
         return self.network.attrs['IPAM']['Config'][0]['Subnet']
 
     def get_network(self):
+        LOG.debug("Trying to find an existing network with name {}".format(self.name))
         try:
             return DOCKER.networks.get(self.name)
         except docker.errors.NotFound:
@@ -262,6 +268,8 @@ class Link(object):
 
     def connect(self, device,*args, **kwargs):
         LOG.debug('Connecting link to {}'.format(device.name))
+        if not self.network:
+            self.network = self._create()
         return self.network.connect(device, *args, **kwargs)
 
 
