@@ -252,6 +252,7 @@ class Link(object):
     def set_subnet(self, subnet):
         ipam_pool = docker.types.IPAMPool(subnet)
         self.ipam = docker.types.IPAMConfig(pool_configs=[ipam_pool])
+        self.user_defined = True
         return
 
     def subnet(self):
