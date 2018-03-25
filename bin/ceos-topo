@@ -199,10 +199,14 @@ class Host(Device):
         # interfaces (which may contain >1 elements)
         # and overriding the default network with this name
         int_name = next(iter(self.interfaces))
-        LOG.debug("Making {} a default network for {}"
-                  .format(int_name, self.name))
-        self.network = self.interfaces.pop(int_name).name
-        LOG.debug("The remaining interfaces that will be connected before the start are {}"
+        first_link = self.interfaces.pop(int_name)
+        self.network = first_link.name
+        LOG.debug("\tMaking {} a default network for {}"
+                  .format(self.network, self.name))
+        if not first_link.network:
+            LOG.debug("\tThe network must exist in order to create a host container. Checking if it exists")
+            first_link.get_or_create()
+        LOG.debug("\tThe remaining interfaces that will be connected before the start are {}"
                   .format(self.interfaces.keys()))
         return super()._create()
 
@@ -243,9 +247,9 @@ class Link(object):
         self.network = None
         self.subnet = None
 
-    def _get_or_create(self):
+    def get_or_create(self):
         LOG.debug('Obtaining a pointer to network {}'.format(self.name))
-        network = self._get()
+        self.network = self._get()
         if not self.network:
             self.network = self._create()
         return
@@ -279,7 +283,7 @@ class Link(object):
     def connect(self, device,*args, **kwargs):
         LOG.debug('Connecting link to {}'.format(device.name))
         if not self.network:
-            self._get_or_create()
+            self.get_or_create()
         return self.network.connect(device, *args, **kwargs)
 
 
