@@ -60,7 +60,7 @@ EOF
 
 if [ "$TMODE" == 'lacp' ]; then
   TARG='/home/alpine/teamd-lacp.conf'
-else if [ "$TMODE" == 'static' ]; then
+elif [ "$TMODE" == 'static' ]; then
   TARG='/home/alpine/teamd-static.conf'
 fi
 
