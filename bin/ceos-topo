@@ -214,7 +214,7 @@ class CVP(Device):
         self.image = 'cvp:latest'
         self.ports = {'443/tcp': 443}
 
-    def _attach(self, container):
+    def _attach(self):
         for interface in sorted(self.interfaces):
             LOG.debug('Attaching container {} interface {} to its link'
                       .format(self.name, interface))
@@ -226,11 +226,11 @@ class CVP(Device):
                 last_ip = netaddr.IPNetwork(link.subnet)[-2]
                 LOG.debug("Link is user-defined, setting CVP address to {}"
                           .format(str(last_ip)))
-                link.connect(container, ipv4_address=str(last_ip))
+                link.connect(self.container, ipv4_address=str(last_ip))
             else:
                 # If not user-defined network, then just connect
                 LOG.debug("Link is not user-defined, connecting CVP with DHCP IP")
-                link.connect(container)
+                link.connect(self.container)
         return
 
 
