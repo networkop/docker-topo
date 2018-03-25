@@ -7,16 +7,16 @@
 TMODE=$1
 
 if [ -z "$TMODE" ]; then
-  TMODE='static'
+  TMODE='none'
 fi
-  
+
 
 #######################
 # Re-run script as sudo
 #######################
 
 if [ "$(id -u)" != "0" ]; then
-  exec sudo "$0" "$@" 
+  exec sudo "$0" "$@"
 fi
 
 ###############
@@ -32,22 +32,9 @@ do
     lldptool -T -i $i -V sysDesc enableTx=yes
 done
 
-##################
-# Enabling teaming
-##################
-
-teamd -v 
-
-ip link set eth1 down
-ip link set eth2 down
-
-cat << EOF > /home/alpine/teamd-static.conf
-{
- "device": "team0",
- "runner": {"name": "roundrobin"},
- "ports": {"eth1": {}, "eth2": {}}
-}
-EOF
+################
+# Teaming setup
+################
 
 cat << EOF > /home/alpine/teamd-lacp.conf
 {
@@ -63,15 +50,32 @@ cat << EOF > /home/alpine/teamd-lacp.conf
 }
 EOF
 
+cat << EOF > /home/alpine/teamd-static.conf
+{
+ "device": "team0",
+ "runner": {"name": "roundrobin"},
+ "ports": {"eth1": {}, "eth2": {}}
+}
+EOF
+
 if [ "$TMODE" == 'lacp' ]; then
   TARG='/home/alpine/teamd-lacp.conf'
-else
+else if [ "$TMODE" == 'static' ]; then
   TARG='/home/alpine/teamd-static.conf'
 fi
 
-teamd -d -f $TARG
+if [ "$TMODE" == 'lacp' ] || [ "$TMODE" == 'static' ]; then
+  teamd -v
+  ip link set eth1 down
+  ip link set eth2 down
+  teamd -d -f $TARG
 
-ip link set team0 up
+  ip link set team0 up
+fi
+
+################
+# IP addr setup
+################
 
 $SETIP="/home/alpine/set_ip.sh"
 
