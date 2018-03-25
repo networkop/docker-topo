@@ -128,14 +128,15 @@ class Device(object):
 
     def stop(self):
         LOG.debug('Stopping container {}'.format(self.name))
-        container = self._get_or_create()
-        if container.status != 'running':
+        if not self.container:
+            self._get_or_create()
+        if self.container.status != 'running':
             LOG.info('Container {} is not running'.format(self.name))
             DOCKER.containers.prune(
                 filters={'label': PREFIX}
             )
             return 1
-        container.stop()
+        self.container.stop()
         return 0
 
 
