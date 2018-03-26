@@ -4,7 +4,12 @@
 # Parse arguments
 #################
 
-TMODE=$1
+IP=$1
+UPLINK="eth1"
+
+# Hardcoding LACP to none for now
+# May need to revisit later
+TMODE="none"
 
 if [ -z "$TMODE" ]; then
   TMODE='none'
@@ -71,18 +76,15 @@ if [ "$TMODE" == 'lacp' ] || [ "$TMODE" == 'static' ]; then
   teamd -d -f $TARG
 
   ip link set team0 up
+  UPLINK="team0"
 fi
 
 ################
 # IP addr setup
 ################
 
-$SETIP="/home/alpine/set_ip.sh"
-
-if [ -e "$SETIP" ]; then
-  chmod +x $SETIP
-  $SETIP
-fi
+ip addr flush dev "$UPLINK"
+ip addr add "$IP" dev "$UPLINK"
 
 #####################
 # Enter sleeping loop

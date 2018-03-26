@@ -57,7 +57,7 @@ def kill_agetty():
 
 class Device(object):
     def __init__(self, name):
-        LOG.debug('Constructing device {}'.format(name))
+        LOG.debug('\tConstructing device {}'.format(name))
         self.name = name
         # Setting up defaults
         self.image = ''
@@ -73,7 +73,7 @@ class Device(object):
         self.container = None
 
     def _get_or_create(self):
-        LOG.debug('Obtaining a pointer to container {}'.format(self.name))
+        LOG.debug('\tObtaining a pointer to container {}'.format(self.name))
         # Checking if container already exists
         self.container = self._get()
         # If doesn't exist creating a new container
@@ -103,7 +103,7 @@ class Device(object):
             return None
 
     def start(self):
-        LOG.debug('Starting container {}'.format(self.name))
+        LOG.debug('\tStarting container {}'.format(self.name))
         if not self.container:
             self._get_or_create()
         if self.container.status == 'running':
@@ -114,20 +114,20 @@ class Device(object):
         return 0
 
     def connect(self, interface, link):
-        LOG.debug('Creating a pointer to network {} for interface {}'.format(link.name, interface))
+        LOG.debug('\tCreating a pointer to network {} for interface {}'.format(link.name, interface))
         self.interfaces[interface] = link
         return
 
     def _attach(self):
         for interface in sorted(self.interfaces):
-            LOG.debug('Attaching container {} interface {} to its link'
+            LOG.debug('\tAttaching container {} interface {} to its link'
                       .format(self.name, interface))
             link = self.interfaces[interface]
             link.connect(self.container)
         return
 
     def stop(self):
-        LOG.debug('Stopping container {}'.format(self.name))
+        LOG.debug('\tStopping container {}'.format(self.name))
         if not self.container:
             self._get_or_create()
         if self.container.status != 'running':
@@ -174,23 +174,18 @@ class CEOS(Device):
 
 
 class Host(Device):
-    def __init__(self, name):
+    def __init__(self, name, ip=None):
         super().__init__(name)
         # Overriding defaults
         self.image = 'alpine-host:latest'
-        self.volumes = self._get_config()
+        # If we have an IP, we pass it as a CMD (arg to an entrypoint script)
+        if self._verify_addr(ip):
+            self.command = ip
 
-    def _get_config(self):
-        startup = os.path.join(CONF_DIR, self.name)
-        # Docker requires absolute path in volumes
-        startup = os.path.abspath(startup)
-        if os.path.isfile(startup):
-            return {startup: {
-                            'bind': "/home/alpine/set_ip.sh",
-                            'mode': 'rw'}
-                    }
-        else:
-            return {}
+    @staticmethod
+    def _verify_addr(ip):
+        prefix = netaddr.IPNetwork(ip)
+        return prefix.prefixlen < 32
 
     def _create(self):
         # This code is to override the default behaviour of connecting
@@ -220,27 +215,26 @@ class CVP(Device):
 
     def _attach(self):
         for interface in sorted(self.interfaces):
-            LOG.debug('Attaching container {} interface {} to its link'
+            LOG.debug('\tAttaching container {} interface {} to its link'
                       .format(self.name, interface))
             link = self.interfaces[interface]
             # Patch to make CVP take the last IP from the subnet
             # This is to avoid IP clash on container restart
             if link.subnet:
-                import netaddr
                 last_ip = netaddr.IPNetwork(link.subnet)[-2]
-                LOG.debug("Link is user-defined, setting CVP address to {}"
+                LOG.debug("\tLink is user-defined, setting CVP address to {}"
                           .format(str(last_ip)))
                 link.connect(self.container, ipv4_address=str(last_ip))
             else:
                 # If not user-defined network, then just connect
-                LOG.debug("Link is not user-defined, connecting CVP with DHCP IP")
+                LOG.debug("\tLink is not user-defined, connecting CVP with DHCP IP")
                 link.connect(self.container)
         return
 
 
 class Link(object):
     def __init__(self, link_type, name):
-        LOG.debug('Constructing a {} link with name {}'.format(link_type, name))
+        LOG.debug('\tConstructing a {} link with name {}'.format(link_type, name))
         self.name = name
         self.link_type = link_type
         self.ipam = None
@@ -248,7 +242,7 @@ class Link(object):
         self.subnet = None
 
     def get_or_create(self):
-        LOG.debug('Obtaining a pointer to network {}'.format(self.name))
+        LOG.debug('\tObtaining a pointer to network {}'.format(self.name))
         self.network = self._get()
         if not self.network:
             self.network = self._create()
@@ -281,7 +275,7 @@ class Link(object):
             return None
 
     def connect(self, device,*args, **kwargs):
-        LOG.debug('Connecting link to {}'.format(device.name))
+        LOG.debug('\tConnecting link to {}'.format(device.name))
         if not self.network:
             self.get_or_create()
         return self.network.connect(device, *args, **kwargs)
@@ -324,7 +318,7 @@ def main():
     CEOS_IMAGE = t_yml.get('CEOS_IMAGE', CEOS_IMAGE)
 
     # Parsing links in the format ["Device-A:Interface-1", "Device-B:Interface-3"]
-    # Or ["Device-A:Interface-1", "cvp-1", "host-1", "host-2:Eth1", "host-2:Eth2"]
+    # Or ["Device-A:Interface-1", "cvp-1", "host-1", "host-2:Eth1", "host-3:Eth2:192.168.10.30/24"]
     for idx, link_dsc in enumerate(t_yml['links']):
         if len(link_dsc) == 2:
             link = Link('p2p', 'net-{}'.format(idx))
@@ -339,15 +333,20 @@ def main():
             device_name = ep.pop(0)
             if 'cvp' in device_name.lower():
                 device = devices.get(device_name, CVP(device_name))
+                # Why are we hard-coding a subnet here? I forgot...
                 link.set_subnet('192.168.100.0/24')
             elif 'host' in device_name.lower():
-                device = devices.get(device_name, Host(device_name))
+                # Support for optional IP address parameter
+                if len(ep) > 1:
+                    # This means we have intf name AND IP address
+                    ip = ep.pop()
+                device = devices.get(device_name, Host(device_name, ip))
             else:
                 device = devices.get(device_name, CEOS(device_name))
+            # Interface name can be optional
             if ep:
                 int_name = ep.pop()
             else:
-                # Interface name can be optional
                 # Note that this would result in an unpredictable connections
                 # when multiple ports are connected to the same link
                 # To avoid that explicitly specify interface name
