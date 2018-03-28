@@ -179,7 +179,7 @@ class Host(Device):
         # Overriding defaults
         self.image = 'alpine-host:latest'
         # If we have an IP, we pass it as a CMD (arg to an entrypoint script)
-        if self._verify_addr(ip):
+        if ip and self._verify_addr(ip):
             self.command = ip
 
     @staticmethod
@@ -340,6 +340,8 @@ def main():
                 if len(ep) > 1:
                     # This means we have intf name AND IP address
                     ip = ep.pop()
+                else:
+                    ip = None
                 device = devices.get(device_name, Host(device_name, ip))
             else:
                 device = devices.get(device_name, CEOS(device_name))
