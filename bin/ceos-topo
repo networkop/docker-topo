@@ -172,7 +172,7 @@ class CEOS(Device):
             return {}
 
     def publish_port(self, inside, outside, proto='tcp'):
-        self.ports['{}/{}'.format(inside, proto)] = outside
+        self.container.ports['{}/{}'.format(inside, proto)] = outside
 
 
 class Host(Device):
