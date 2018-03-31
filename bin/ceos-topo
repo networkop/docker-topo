@@ -370,7 +370,7 @@ def main():
         for idx,name in enumerate(sorted(devices.keys())):
             # Publish internal HTTPS port to external base
             # port offset by device's index (only for CEOS devices)
-            if device.type == 'ceos':
+            if devices[name].type == 'ceos':
                 devices[name].publish_port('443',publish_base+idx)
 
     # Main logic
