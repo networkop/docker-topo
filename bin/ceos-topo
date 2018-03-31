@@ -60,6 +60,7 @@ class Device(object):
         LOG.debug('\tConstructing device {}'.format(name))
         self.name = name
         # Setting up defaults
+        self.type = ''
         self.image = ''
         self.command = ''
         self.environment = dict()
@@ -144,6 +145,7 @@ class CEOS(Device):
     def __init__(self, name):
         super().__init__(name)
         # Overriding defaults
+        self.type = 'ceos'
         self.image = CEOS_IMAGE
         self.command = "/sbin/init"
         self.environment = {
@@ -177,6 +179,7 @@ class Host(Device):
     def __init__(self, name, ip=None):
         super().__init__(name)
         # Overriding defaults
+        self.type = 'host'
         self.image = 'alpine-host:latest'
         # If we have an IP, we pass it as a CMD (arg to an entrypoint script)
         if ip and self._verify_addr(ip):
@@ -210,6 +213,7 @@ class CVP(Device):
     def __init__(self, name):
         super().__init__(name)
         # Overriding defaults
+        self.type = 'cvp'
         self.image = 'cvp:latest'
         self.ports = {'443/tcp': 443}
 
@@ -365,8 +369,9 @@ def main():
         # Sort all device names alphabetically
         for idx,name in enumerate(sorted(devices.keys())):
             # Publish internal HTTPS port to external base
-            # port offset by device's index
-            devices[name].publish_port('443',publish_base+idx)
+            # port offset by device's index (only for CEOS devices)
+            if device.type == 'ceos':
+                devices[name].publish_port('443',publish_base+idx)
 
     # Main logic
     if create:
