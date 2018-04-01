@@ -2,6 +2,7 @@
 import argparse
 import logging
 import yaml
+import os
 import docker
 import os.path
 import netaddr
@@ -11,6 +12,7 @@ DOCKER = docker.from_env()
 CONF_DIR = './config'
 PREFIX = 'CEOS-LAB'
 CEOS_IMAGE = 'ceos:latest'
+PUBLISH_BASE = 8000
 
 
 def parse_args():
@@ -287,7 +289,7 @@ class Link(object):
 
 def main():
     # Initializing main variables
-    global PREFIX, CEOS_IMAGE, CONF_DIR
+    global PREFIX, CEOS_IMAGE, CONF_DIR, PUBLISH_BASE
     devices = dict()
     links = list()
 
@@ -317,9 +319,12 @@ def main():
         return 1
 
     # Loading optional variables
-    CONF_DIR = t_yml.get('CONF_DIR', CONF_DIR)
-    PREFIX = t_yml.get('PREFIX', PREFIX)
-    CEOS_IMAGE = t_yml.get('CEOS_IMAGE', CEOS_IMAGE)
+    # First check if it's specified in topoology.yml
+    # Then check if it's an env variable, last accept default
+    CONF_DIR = t_yml.get('CONF_DIR',os.getenv('CONF_DIR', CONF_DIR))
+    PREFIX = t_yml.get('PREFIX', os.getenv('PREFIX', PREFIX))
+    CEOS_IMAGE = t_yml.get('CEOS_IMAGE', os.getenv('CEOS_IMAGE', CEOS_IMAGE))
+    PUBLISH_BASE = int(t_yml.get('PUBLISH_BASE', os.getenv('PUBLISH_BASE', PUBLISH_BASE)))
 
     # Parsing links in the format ["Device-A:Interface-1", "Device-B:Interface-3"]
     # Or ["Device-A:Interface-1", "cvp-1", "host-1", "host-2:Eth1", "host-3:Eth2:192.168.10.30/24"]
@@ -363,15 +368,13 @@ def main():
             devices[device_name] = device
 
     # Publishing ports.
-    publish_base = t_yml.get('publish_base', None)
-    # If 'publish_base' variable is defined in YAML file
-    if publish_base:
+    if PUBLISH_BASE:
         # Sort all device names alphabetically
         for idx,name in enumerate(sorted(devices.keys())):
             # Publish internal HTTPS port to external base
             # port offset by device's index (only for CEOS devices)
             if devices[name].type == 'ceos':
-                devices[name].publish_port('443',publish_base+idx)
+                devices[name].publish_port('443',PUBLISH_BASE+idx)
 
     # Main logic
     if create:
