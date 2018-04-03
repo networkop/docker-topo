@@ -38,8 +38,7 @@ links:
 There should be three topology examples in the `./arista-ceos-files/examples` directory
 
 # (Optional) Override default variables
-There are three global variables used by the script 
-which can be overridden in the topology file:
+There are several global variables used by the script:
 
 * PREFIX - unique label assigned to all docker containers and 
 links within a single topology. Used as a filter during the 
@@ -47,25 +46,21 @@ cleanup process.
 * CONF_DIR - path to the config directory if/when configuration 
 files are supplied
 * CEOS_IMAGE - Name of the cEOS image to use
+* PUBLISH_BASE - A port number offset by a device index to which to publish
+the internal https port.
 
-If none of the variables are found in the topology file, the following defaults will be used:
+These variables can be defined in either a topology file (first choice) or 
+as environment variables of the shell calling the script (second choice).
+If any of the variables is not explicitly defined, the following defaults 
+will be used:
 
 * CONF_DIR = './config'
 * PREFIX = 'CEOS-LAB'
 * CEOS_IMAGE = 'ceos:latest'
+* PUBLISH_BASE = 8000
 
-# (Optional) Publishing ports
-By default all containers will start without published ports.
-In order to publish ports, an optional variable `publish_base`
-needs to be defined. All devices will then be sorted alphabetically
-using their names and internal HTTPS port will be published to 
-external base port offset by device's sequence number. 
-Example of how to setup port publishing:
-```yaml
-publish_base: 8000
-```
-For the case of 3 containers, the above will result in the following
-mapping:
+For the case of 3 containers, the above PUBLISH_BASE setting will result in 
+the following mapping:
 * cEOS-1 port 443 - Docker host port 8000
 * cEOS-2 port 443 - Docker host port 8001
 * cEOS-3 port 443 - Docker host port 8002
