@@ -129,8 +129,8 @@ class Device(object):
             link.connect(self.container)
         return
 
-    def stop(self):
-        LOG.debug('\tStopping container {}'.format(self.name))
+    def kill(self):
+        LOG.debug('\tKilling container {}'.format(self.name))
         if not self.container:
             self._get_or_create()
         if self.container.status != 'running':
@@ -139,9 +139,8 @@ class Device(object):
                 filters={'label': PREFIX}
             )
             return 1
-        self.container.stop()
+        self.container.kill()
         return 0
-
 
 class CEOS(Device):
     def __init__(self, name):
@@ -387,8 +386,8 @@ def main():
             LOG.info('Devices have not been started')
             return 1
     if destroy:
-        stopped = [device.stop() == 0 for (name, device) in devices.items()]
-        # Regardless of whether we stopped or not, try to prune unused objects
+        killed = [device.kill() == 0 for (name, device) in devices.items()]
+        # Regardless of whether we killed or not, try to prune unused objects
         DOCKER.networks.prune(
             filters={'label': PREFIX}
         )
@@ -396,11 +395,11 @@ def main():
             filters={'label': PREFIX}
         )
         kill_agetty()
-        if all(stopped):
-            LOG.info('All devices stopped successfully')
+        if all(killed):
+            LOG.info('All devices destroyed successfully')
             return 0
         else:
-            LOG.info('Devices have not been stopped')
+            LOG.info('Devices have not been destroyed')
             return 1
 
 
