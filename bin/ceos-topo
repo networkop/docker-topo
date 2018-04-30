@@ -45,8 +45,11 @@ def parse_args():
 def enable_lldp(networks):
     import subprocess
     for each in networks:
-        cmd = 'echo 16384 > /sys/class/net/br-{}/bridge/group_fwd_mask'.format(each.network.id[:12])
-        subprocess.call(cmd, shell=True)
+        try:
+            cmd = 'echo 16384 > /sys/class/net/br-{}/bridge/group_fwd_mask'.format(each.network.id[:12])
+            subprocess.call(cmd, shell=True)
+        except:
+            continue
     return
 
 
