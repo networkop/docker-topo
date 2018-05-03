@@ -222,7 +222,7 @@ class CVP(Device):
         self.image = 'cvp:latest'
         self.ports = {'443/tcp': 443}
         self.prefix = OOB_PREFIX
-        self.command = self._get_ip_mask
+        self.command = self._get_ip_mask()
 
     def _get_ip_mask(self):
         prefix = netaddr.IPNetwork(self.prefix)
