@@ -13,6 +13,7 @@ CONF_DIR = './config'
 PREFIX = 'CEOS-LAB'
 CEOS_IMAGE = 'ceos:latest'
 PUBLISH_BASE = 8000
+OOB_PREFIX = '192.168.100.0/24'
 
 
 def parse_args():
@@ -220,24 +221,13 @@ class CVP(Device):
         self.type = 'cvp'
         self.image = 'cvp:latest'
         self.ports = {'443/tcp': 443}
+        self.prefix = OOB_PREFIX
+        self.command = self._get_ip_mask
 
-    def _attach(self):
-        for interface in sorted(self.interfaces):
-            LOG.debug('\tAttaching container {} interface {} to its link'
-                      .format(self.name, interface))
-            link = self.interfaces[interface]
-            # Patch to make CVP take the last IP from the subnet
-            # This is to avoid IP clash on container restart
-            if link.subnet:
-                last_ip = netaddr.IPNetwork(link.subnet)[-2]
-                LOG.debug("\tLink is user-defined, setting CVP address to {}"
-                          .format(str(last_ip)))
-                link.connect(self.container, ipv4_address=str(last_ip))
-            else:
-                # If not user-defined network, then just connect
-                LOG.debug("\tLink is not user-defined, connecting CVP with DHCP IP")
-                link.connect(self.container)
-        return
+    def _get_ip_mask(self):
+        prefix = netaddr.IPNetwork(self.prefix)
+        # Giving CVP the last IP from the OOB subnet
+        return [str(prefix[-2]), str(prefix.netmask)]
 
 
 class Link(object):
@@ -264,17 +254,6 @@ class Link(object):
                 labels={PREFIX: self.name}
             )
 
-    def set_subnet(self, subnet):
-        self.subnet = subnet
-        ipam_pool = docker.types.IPAMPool(subnet)
-        self.ipam = docker.types.IPAMConfig(pool_configs=[ipam_pool])
-        return
-
-    def subnet(self):
-        LOG.debug("Returning the first configured IPAM subnet for network {}"
-                  .format(self.name))
-        return self.subnet
-
     def _get(self):
         LOG.debug("Trying to find an existing network with name {}".format(self.name))
         try:
@@ -291,7 +270,7 @@ class Link(object):
 
 def main():
     # Initializing main variables
-    global PREFIX, CEOS_IMAGE, CONF_DIR, PUBLISH_BASE
+    global PREFIX, CEOS_IMAGE, CONF_DIR, PUBLISH_BASE, OOB_PREFIX
     devices = dict()
     links = list()
 
@@ -327,6 +306,7 @@ def main():
     PREFIX = t_yml.get('PREFIX', os.getenv('PREFIX', PREFIX))
     CEOS_IMAGE = t_yml.get('CEOS_IMAGE', os.getenv('CEOS_IMAGE', CEOS_IMAGE))
     PUBLISH_BASE = int(t_yml.get('PUBLISH_BASE', os.getenv('PUBLISH_BASE', PUBLISH_BASE)))
+    OOB_PREFIX = t_yml.get('OOB_PREFIX',os.getenv('OOB_PREFIX', OOB_PREFIX))
 
     # Parsing links in the format ["Device-A:Interface-1", "Device-B:Interface-3"]
     # Or ["Device-A:Interface-1", "cvp-1", "host-1", "host-2:Eth1", "host-3:Eth2:192.168.10.30/24"]
@@ -345,7 +325,7 @@ def main():
             if 'cvp' in device_name.lower():
                 device = devices.get(device_name, CVP(device_name))
                 # Why are we hard-coding a subnet here? I forgot...
-                link.set_subnet('192.168.100.0/24')
+                # link.set_subnet('192.168.100.0/24')
             elif 'host' in device_name.lower():
                 # Support for optional IP address parameter
                 if len(ep) > 1:
