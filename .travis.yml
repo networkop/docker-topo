@@ -13,9 +13,7 @@ python:
 sudo: false
 
 before_install:
-  - ls
-  - pwd
-  - cd networkop/arista-ceos-files/host/
+  - cd arista-ceos-files/host/
   - docker build -t alpine-host .
 install:
   - pip install git+https://github.com/networkop/arista-ceos-topo.git@dev
