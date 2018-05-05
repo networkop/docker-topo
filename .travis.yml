@@ -15,7 +15,7 @@ sudo: false
 before_install:
   - ls
   - pwd
-  - cd arista-ceos-topo/arista-ceos-files/host/
+  - cd networkop/arista-ceos-files/host/
   - docker build -t alpine-host .
 install:
   - pip install git+https://github.com/networkop/arista-ceos-topo.git@dev
@@ -24,3 +24,6 @@ script:
   - ceos-topo --create --debug test/v1/t1.yml
   - docker exec -it t1_host-1 sudo ping -c 3 12.12.12.2
   - ceos-topo --destroy --debug test/v1/t1.yml
+
+notifications:
+  email: false
