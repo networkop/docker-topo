@@ -14,6 +14,8 @@ PREFIX = 'CEOS-LAB'
 CEOS_IMAGE = 'ceos:latest'
 PUBLISH_BASE = 8000
 OOB_PREFIX = '192.168.100.0/24'
+VERSION = "1"
+SUPPORTED_DRIVERS = ['macvlan', 'bridge', 'veth']
 
 
 def parse_args():
@@ -60,22 +62,120 @@ def kill_agetty():
     subprocess.call(cmd, shell=True)
     return
 
+def parse_endpoints(devices, endpoints, link, idx):
+    """
+    Parses a single endpoints list in the format:
+    ["Device-A:Interface-1", "cvp-1", "host-1", "host-2:Eth1", "host-3:Eth2:192.168.10.30/24"]
+    Updates devices dictionary
+    """
+    for endpoint in endpoints:
+        # Example: ep == "host-3:Eth2:192.168.10.30/24"
+        ep = endpoint.split(':')
+        # Example: ep == ["host-3", "Eth2", "192.168.10.30/24"]
+        if not ep:
+            LOG.error('Link contains empty definition')
+        device_name = ep.pop(0)
+        # Example: device_name == "host-3"
+        # We only support CVP, Host and CEOS device types
+        if 'cvp' in device_name.lower():
+            # The below is dict.get(key, default) 
+            device = devices.get(device_name, CVP(device_name))
+        elif 'host' in device_name.lower():
+            # Example: ep == ["Eth2","192.168.10.30/24"]
+            device = devices.get(device_name, Host(device_name))
+            if len(ep) > 1:
+                # This means we have intf name _AND_ IP address
+                ip = ep.pop()
+                device.add_ip(ip)            
+        else:
+            device = devices.get(device_name, CEOS(device_name))
+        if ep:
+            int_name = ep.pop()
+        else:
+            # ep is None, meaning endpoint was defined without
+            # interface name, like "host-2"
+            int_name = 'eth{}'.format(idx)
+        # Remember device connections
+        device.connect(int_name, link)
+        devices[device_name] = device   
+
+def parse_v1(t_yml):
+    """
+    Reads the topology definition in the following format:
+    links:
+      - ["Device-A:Interface-1", "Device-B:Interface-3"]
+      - ["Device-A:Interface-1", "cvp-1", "host-1", "host-2:Eth1", "host-3:Eth2:192.168.10.30/24"]
+    Returns a dict of devices and a list links
+    """
+    devices = dict()
+    links = list()
+    for idx, link_dsc in enumerate(t_yml['links']):
+        # Example: link_dsc == ["Device-A:Interface-1", "cvp-1", "host-1", "host-3:Eth2:192.168.10.30/24"]
+        if len(link_dsc) == 2:
+            # Example: link_dsc == ["Device-A:Interface-1", "cvp-1"]
+            link_type = 'p2p'
+        else:
+            # Example: link_dsc == ["Device-A:Interface-1", "cvp-1", "host-1"]
+            link_type = 'mpoint'
+        link = Link(link_type, 'net-{}'.format(idx))
+        links.append(link)
+        parse_endpoints(devices, link_dsc, link, idx)
+    return devices, links
+
+def parse_v2(t_yml):
+    """
+    Reads the topology definition in the following format:
+    links:
+      - driver: macvlan (Optional)
+        driver_opts: (Optional)
+          parent: eth0
+        endpoints: ["Device-A:Interface-1", "Device-B:Interface-3"]
+      - endpoints:
+          - Device-A:Interface-1
+          - cvp-1
+          - host-1
+          - host-2:Eth1
+          - host-3:Eth2:192.168.10.30/24
+    Returns a dict of devices and a list of links
+    """
+    devices = dict()
+    links = list()
+    for idx, link_dsc in enumerate(t_yml['links']):
+        # Example: link_dsc == {'driver': 'macvlan', 'driver_opts': {'parent': 'eth1'},
+        # endpoints: ["Device-A:Interface-1", "cvp-1", "host-1", "host-3:Eth2:192.168.10.30/24"]}
+        LOG.debug("parsing link {}".format(link_dsc))
+        link_driver = link_dsc.get('driver', None)
+        driver_opts = link_dsc.get('driver_opts', None)
+        link_endpoints = link_dsc.get('endpoints', None)
+        if not link_endpoints:
+            LOG.error("Missing endpoints definition")
+        else:
+            LOG.debug("parsing endpoints {}".format(link_endpoints))
+        if len(link_endpoints) <= 2:
+            # Example: link_dsc == ["Device-A:Interface-1", "cvp-1"]
+            link_type = 'p2p'
+        else:
+            # Example: link_dsc == ["Device-A:Interface-1", "cvp-1", "host-1"]
+            link_type = 'mpoint'
+        link = Link(link_type, 'net-{}'.format(idx), link_driver, driver_opts)
+        links.append(link)
+        parse_endpoints(devices, link_endpoints, link, idx)
+    return devices, links
 
 class Device(object):
     def __init__(self, name):
         LOG.debug('\tConstructing device {}'.format(name))
-        self.name = name
+        self.name = '_'.join([PREFIX, name])
         # Setting up defaults
         self.type = ''
         self.image = ''
         self.command = ''
         self.environment = dict()
+        self.default_network = 'bridge'
         # Setting up extra variables
         self.interfaces = dict()
         self.volumes = dict()
         self.ports = dict()
-        self.sequence = 0
-        self.network = 'bridge'
         # Pointer to docker SDK object
         self.container = None
 
@@ -94,7 +194,7 @@ class Device(object):
                 command=self.command,
                 environment=self.environment,
                 volumes=self.volumes,
-                network=self.network,
+                network=self.default_network,
                 privileged=True,
                 name=self.name,
                 detach=True,
@@ -171,7 +271,7 @@ class CEOS(Device):
         if os.path.isfile(startup):
             return {startup: {
                             'bind': "/mnt/flash/startup-config",
-                            'mode': 'ro'}
+                            'mode': 'rw'}
                     }
         else:
             return {}
@@ -181,20 +281,24 @@ class CEOS(Device):
 
 
 class Host(Device):
-    def __init__(self, name, ip=None):
+    def __init__(self, name):
         super().__init__(name)
         # Overriding defaults
         self.type = 'host'
         self.image = 'alpine-host:latest'
-        # If we have an IP, we pass it as a CMD (arg to an entrypoint script)
-        if ip and self._verify_addr(ip):
-            self.command = ip
+        # CMD will contain a list of IPs to assign to interfaces
+        self.command = []
 
     @staticmethod
     def _verify_addr(ip):
         prefix = netaddr.IPNetwork(ip)
         return prefix.prefixlen < 32
 
+    def add_ip(self, ip):
+        LOG.debug("Adding IP address command line argument for IP {}".format(ip))
+        if self._verify_addr(ip):
+            self.command.append(ip)
+    
     def _create(self):
         # This code is to override the default behaviour of connecting
         # the first interface to the default docker bridge
@@ -203,9 +307,9 @@ class Host(Device):
         # and overriding the default network with this name
         int_name = next(iter(self.interfaces))
         first_link = self.interfaces.pop(int_name)
-        self.network = first_link.name
+        self.default_network = first_link.name
         LOG.debug("\tMaking {} a default network for {}"
-                  .format(self.network, self.name))
+                  .format(self.default_network, self.name))
         if not first_link.network:
             LOG.debug("\tThe network must exist in order to create a host container. Checking if it exists")
             first_link.get_or_create()
@@ -231,27 +335,34 @@ class CVP(Device):
 
 
 class Link(object):
-    def __init__(self, link_type, name):
+    def __init__(self, link_type, name, link_driver=None, driver_opts=None):
         LOG.debug('\tConstructing a {} link with name {}'.format(link_type, name))
-        self.name = name
+        self.name = '_'.join([PREFIX, name])
         self.link_type = link_type
-        self.ipam = None
         self.network = None
-        self.subnet = None
+        if link_driver:
+            self.driver = link_driver
+        else:
+            self.driver = 'bridge'
+        if not self.driver in SUPPORTED_DRIVERS:
+            LOG.error("Unsupported link driver {}".format(link_driver))
+        self.opts = driver_opts if driver_opts else {}
+
 
     def get_or_create(self):
         LOG.debug('\tObtaining a pointer to network {}'.format(self.name))
         self.network = self._get()
         if not self.network:
             self.network = self._create()
-        return
+        return self.network
 
     def _create(self):
+        LOG.debug('\tCreating a new network {} of type {}'.format(self.name, self.driver))
         return DOCKER.networks.create(
                 self.name,
-                driver='bridge',
-                ipam=self.ipam,
-                labels={PREFIX: self.name}
+                driver=self.driver,
+                labels={PREFIX: self.name},
+                options=self.opts
             )
 
     def _get(self):
@@ -259,6 +370,7 @@ class Link(object):
         try:
             return DOCKER.networks.get(self.name)
         except docker.errors.NotFound:
+            LOG.debug("Network {} not found".format(self.name))
             return None
 
     def connect(self, device,*args, **kwargs):
@@ -270,17 +382,16 @@ class Link(object):
 
 def main():
     # Initializing main variables
-    global PREFIX, CEOS_IMAGE, CONF_DIR, PUBLISH_BASE, OOB_PREFIX
-    devices = dict()
-    links = list()
+    global PREFIX, CEOS_IMAGE, CONF_DIR, PUBLISH_BASE, OOB_PREFIX, VERSION
 
     # Assigning arguments
-    args = parse_args()
-    debug = args.debug
-    create = args.create
-    t_file = os.path.join(os.getcwd(), args.topology)
+    args    = parse_args()
+    debug   = args.debug
+    create  = args.create
+    t_file  = os.path.join(os.getcwd(), args.topology)
+    t_fn    = os.path.split(args.topology)[-1]
     destroy = args.destroy
-    PREFIX = args.topology.split('.')[0]
+    PREFIX  = t_fn.split('.')[0]
 
     # Logging settings
     if debug:
@@ -295,59 +406,28 @@ def main():
     LOG.debug("Loaded topology from YAML file {}\n {}"
                  .format(t_file, yaml.dump(t_yml)))
     if 'links' not in t_yml:
-        LOG.info('"link" dictionary is not found in {}'
+        LOG.info('"links" dictionary is not found in {}'
                     .format(t_file))
         return 1
 
     # Loading optional variables
     # First check if it's specified in topoology.yml
     # Then check if it's an env variable, last accept default
-    CONF_DIR = t_yml.get('CONF_DIR',os.getenv('CONF_DIR', CONF_DIR))
-    PREFIX = t_yml.get('PREFIX', os.getenv('PREFIX', PREFIX))
     CEOS_IMAGE = t_yml.get('CEOS_IMAGE', os.getenv('CEOS_IMAGE', CEOS_IMAGE))
+    CONF_DIR = t_yml.get('CONF_DIR',os.getenv('CONF_DIR', CONF_DIR))
     PUBLISH_BASE = int(t_yml.get('PUBLISH_BASE', os.getenv('PUBLISH_BASE', PUBLISH_BASE)))
     OOB_PREFIX = t_yml.get('OOB_PREFIX',os.getenv('OOB_PREFIX', OOB_PREFIX))
+    VERSION = str(t_yml.get('VERSION',os.getenv('VERSION', VERSION)))
 
-    # Parsing links in the format ["Device-A:Interface-1", "Device-B:Interface-3"]
-    # Or ["Device-A:Interface-1", "cvp-1", "host-1", "host-2:Eth1", "host-3:Eth2:192.168.10.30/24"]
-    for idx, link_dsc in enumerate(t_yml['links']):
-        if len(link_dsc) == 2:
-            link = Link('p2p', 'net-{}'.format(idx))
-        else:
-            link = Link('mpoint', 'net-{}'.format(idx))
-        links.append(link)
-        for endpoint in link_dsc:
-            ep = endpoint.split(':')
-            if not ep:
-                LOG.info('Link contains empty definition')
-                return 1
-            device_name = ep.pop(0)
-            if 'cvp' in device_name.lower():
-                device = devices.get(device_name, CVP(device_name))
-                # Why are we hard-coding a subnet here? I forgot...
-                # link.set_subnet('192.168.100.0/24')
-            elif 'host' in device_name.lower():
-                # Support for optional IP address parameter
-                if len(ep) > 1:
-                    # This means we have intf name AND IP address
-                    ip = ep.pop()
-                else:
-                    ip = None
-                device = devices.get(device_name, Host(device_name, ip))
-            else:
-                device = devices.get(device_name, CEOS(device_name))
-            # Interface name can be optional
-            if ep:
-                int_name = ep.pop()
-            else:
-                # Note that this would result in an unpredictable connections
-                # when multiple ports are connected to the same link
-                # To avoid that explicitly specify interface name
-                # As in "device:interface"
-                int_name = 'eth{}'.format(idx)
-            # Remember device connections
-            device.connect(int_name, link)
-            devices[device_name] = device
+    # Versioned parsing logic
+    if VERSION == "1":
+        devices, links = parse_v1(t_yml)
+    elif VERSION == "2":
+        devices, links = parse_v2(t_yml)
+    else:
+        LOG.error("Specified version {} is not supported".format(VERSION))
+        return 1
+    
 
     # Publishing ports.
     if PUBLISH_BASE:

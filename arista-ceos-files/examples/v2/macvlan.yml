@@ -1,0 +1,13 @@
+VERSION: 2
+PUBLISH_BASE: 9100
+CEOS_IMAGE: ceosimage:latest
+links:
+        - endpoints:
+            - "Device-A:Interface-2" 
+            - "Device-B:Interface-1"
+        - driver: macvlan
+          driver_opts: 
+            parent: wlp58s0
+          endpoints: ["Device-A:Interface-1", "Device-B:Interface-2"]
+
+

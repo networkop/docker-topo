@@ -1,6 +1,8 @@
 # arista-ceos-topo
 Arista cEOS topology builder
 
+[![Build Status](https://travis-ci.org/networkop/arista-ceos-topo.svg?branch=master)](https://travis-ci.org/networkop/arista-ceos-topo)
+
 # Installation
 
 ````bash

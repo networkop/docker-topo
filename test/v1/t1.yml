@@ -1,0 +1,2 @@
+links:
+  - ["host-1:Ethernet1:12.12.12.1/24", "host-2:Ethernet1:12.12.12.2/24"]
