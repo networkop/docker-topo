@@ -1,0 +1,8 @@
+VERSION: 2
+CEOS_IMAGE: ceosimage:latest
+PUBLISH_BASE: 9000
+driver: veth
+links:
+  - endpoints: ["host1:eth1:12.12.12.1/24", "host2:eth2:12.12.12.2/24"]
+  - endpoints: ["host1:eth2:13.13.13.1/24", "host3:eth1:13.13.13.3/24"]
+  - endpoints: ["host2:eth1:23.23.23.2/24", "host3:eth2:23.23.23.3/24"]

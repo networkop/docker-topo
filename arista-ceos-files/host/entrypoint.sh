@@ -79,15 +79,26 @@ fi
 # IP addr setup
 ################
 
-for i in `seq 1 $#`; do
-  eval ip="\$$i"
-  cmd1="ip flush dev $UPLINK$((i-1))"
-  cmd2="ip addr add $ip dev $UPLINK$((i-1))"
-  echo $cmd1
-  echo $cmd2
-  eval $cmd1
-  eval $cmd2
+
+
+cat << EOT >> /set_ips.sh
+#!/bin/sh
+args="$@"
+for arg in \$args; do
+  eval ip=\`echo \$arg | cut -d':' -f2\`
+  eval int=\`echo \$arg |cut -d':' -f1\`
+  cmd1="sudo ip addr flush dev \$int"
+  cmd2="sudo ip addr add \$ip dev \$int"
+  echo \$cmd1
+  echo \$cmd2
+  eval \$cmd1
+  eval \$cmd2
 done
+EOT
+
+chmod +x /set_ips.sh
+
+/set_ips.sh
 
 #####################
 # Enter sleeping loop

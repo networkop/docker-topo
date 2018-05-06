@@ -6,6 +6,7 @@ import os
 import docker
 import os.path
 import netaddr
+import subprocess
 
 LOG = logging.getLogger(__name__)
 DOCKER = docker.from_env()
@@ -15,8 +16,9 @@ CEOS_IMAGE = 'ceos:latest'
 PUBLISH_BASE = 8000
 OOB_PREFIX = '192.168.100.0/24'
 VERSION = "1"
+SUDO = None
 SUPPORTED_DRIVERS = ['macvlan', 'bridge', 'veth']
-
+DEVNULL = open(os.devnull, 'w')
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Tool to create cEOS topologies")
@@ -36,6 +38,10 @@ def parse_args():
         help="Destroy topology",
         action="store_true"
     )
+    group.add_argument(
+        "--sudo",
+        help="Sudo password"
+    )
     parser.add_argument(
         "topology",
         help='Topology file',
@@ -45,21 +51,28 @@ def parse_args():
     return args
 
 
+def run_cmd(command, sudo=False):
+    if sudo:
+        sudo_prefix = 'sudo '
+    else:
+        sudo_prefix = ''
+    cmd = sudo_prefix + command
+    LOG.debug("Running command: {}".format(cmd))
+    return subprocess.call(cmd, shell=True, stdout=DEVNULL, stderr=subprocess.STDOUT)
+
 def enable_lldp(networks):
-    import subprocess
     for each in networks:
         try:
             cmd = 'echo 16384 > /sys/class/net/br-{}/bridge/group_fwd_mask'.format(each.network.id[:12])
-            subprocess.call(cmd, shell=True)
+            run_cmd(cmd)
         except:
             continue
     return
 
 
 def kill_agetty():
-    import subprocess
     cmd = 'pkill agetty'
-    subprocess.call(cmd, shell=True)
+    run_cmd(cmd)
     return
 
 def parse_endpoints(devices, endpoints, link, idx):
@@ -68,6 +81,7 @@ def parse_endpoints(devices, endpoints, link, idx):
     ["Device-A:Interface-1", "cvp-1", "host-1", "host-2:Eth1", "host-3:Eth2:192.168.10.30/24"]
     Updates devices dictionary
     """
+    start_mode = 'manual' if link.driver == 'veth' else 'auto'
     for endpoint in endpoints:
         # Example: ep == "host-3:Eth2:192.168.10.30/24"
         ep = endpoint.split(':')
@@ -79,16 +93,16 @@ def parse_endpoints(devices, endpoints, link, idx):
         # We only support CVP, Host and CEOS device types
         if 'cvp' in device_name.lower():
             # The below is dict.get(key, default) 
-            device = devices.get(device_name, CVP(device_name))
+            device = devices.get(device_name, CVP(device_name, start_mode))
         elif 'host' in device_name.lower():
             # Example: ep == ["Eth2","192.168.10.30/24"]
-            device = devices.get(device_name, Host(device_name))
+            device = devices.get(device_name, Host(device_name, start_mode))
             if len(ep) > 1:
                 # This means we have intf name _AND_ IP address
                 ip = ep.pop()
-                device.add_ip(ip)            
+                device.add_ip(ip, ep[0])            
         else:
-            device = devices.get(device_name, CEOS(device_name))
+            device = devices.get(device_name, CEOS(device_name, start_mode))
         if ep:
             int_name = ep.pop()
         else:
@@ -144,7 +158,8 @@ def parse_v2(t_yml):
         # Example: link_dsc == {'driver': 'macvlan', 'driver_opts': {'parent': 'eth1'},
         # endpoints: ["Device-A:Interface-1", "cvp-1", "host-1", "host-3:Eth2:192.168.10.30/24"]}
         LOG.debug("parsing link {}".format(link_dsc))
-        link_driver = link_dsc.get('driver', None)
+        # Link-specific driver takes priority over topology-specific 
+        link_driver = link_dsc.get('driver', t_yml.get('driver', None))
         driver_opts = link_dsc.get('driver_opts', None)
         link_endpoints = link_dsc.get('endpoints', None)
         if not link_endpoints:
@@ -163,8 +178,8 @@ def parse_v2(t_yml):
     return devices, links
 
 class Device(object):
-    def __init__(self, name):
-        LOG.debug('\tConstructing device {}'.format(name))
+    def __init__(self, name, start_mode='auto'):
+        LOG.debug('\tConstructing device {} with start_mode={}'.format(name, start_mode))
         self.name = '_'.join([PREFIX, name])
         # Setting up defaults
         self.type = ''
@@ -172,7 +187,9 @@ class Device(object):
         self.command = ''
         self.environment = dict()
         self.default_network = 'bridge'
-        # Setting up extra variables
+        self.start_mode = start_mode
+        self.pid = None
+        # Setting up extra variablesSUDO
         self.interfaces = dict()
         self.volumes = dict()
         self.ports = dict()
@@ -182,12 +199,15 @@ class Device(object):
     def _get_or_create(self):
         LOG.debug('\tObtaining a pointer to container {}'.format(self.name))
         # Checking if container already exists
-        self.container = self._get()
+        self.container = self.get()
         # If doesn't exist creating a new container
         if not self.container:
             self.container = self._create()
         return
-
+    
+    def _update(self):
+        self.container = self.get()
+    
     def _create(self):
         return DOCKER.containers.create(
                 self.image,
@@ -203,7 +223,7 @@ class Device(object):
                 labels={PREFIX: self.name}
             )
 
-    def _get(self):
+    def get(self):
         try:
             return DOCKER.containers.get(self.name)
         except docker.errors.NotFound:
@@ -216,8 +236,32 @@ class Device(object):
         if self.container.status == 'running':
             LOG.info('Container {} already running'.format(self.name))
             return 1
-        self._attach()
-        self.container.start()
+        if self.start_mode == 'auto':
+            self._attach()
+            self.container.start()
+        elif self.start_mode == 'manual':
+            self.container.start()
+            self._update()
+            self.pid = self.container.attrs.get('State', {}).get('Pid', None)
+            LOG.debug('\tPID for container {} is {}'.format(self.name, self.pid))
+            cmd1 = "mkdir -p /var/run/netns"
+            rc = run_cmd(cmd1, True)
+            if rc:
+                LOG.debug('\tFailed to create /var/run/netns directory')
+            cmd2 = "ln -sf /proc/{}/ns/net /var/run/netns/{}".format(self.pid, self.name)
+            rc = run_cmd(cmd2, True)
+            if rc:
+                LOG.debug('\tFailed to create symlink /proc/{}/ns/net -> /var/run/netns/{}'.format(self.pid, self.name))
+            self.container.pause()
+            self._attach()
+            self.container.unpause()
+            # This is to fix the scripts who assign IPs in entrypoint
+            if self.type == 'host':
+                LOG.debug("Running set ips script")
+                rc, output = self.container.exec_run("/set_ips.sh")
+                LOG.debug("RC = {}, output = {}".format(rc, output))
+        else:
+            LOG.info('Unsupported container start mode {}'.format(self.start_mode))
         return 0
 
     def connect(self, interface, link):
@@ -230,25 +274,30 @@ class Device(object):
             LOG.debug('\tAttaching container {} interface {} to its link'
                       .format(self.name, interface))
             link = self.interfaces[interface]
-            link.connect(self.container)
+            link.connect(self.container, interface)
         return
 
     def kill(self):
         LOG.debug('\tKilling container {}'.format(self.name))
         if not self.container:
             self._get_or_create()
-        if self.container.status != 'running':
+        
+        if self.container.status not in ['running', 'paused']:
             LOG.info('Container {} is not running'.format(self.name))
             DOCKER.containers.prune(
                 filters={'label': PREFIX}
             )
             return 1
         self.container.kill()
+
+        if self.start_mode == 'manual':
+            cmd = "rm /var/run/netns/{}".format(self.name)
+            run_cmd(cmd, True)
         return 0
 
 class CEOS(Device):
-    def __init__(self, name):
-        super().__init__(name)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         # Overriding defaults
         self.type = 'ceos'
         self.image = CEOS_IMAGE
@@ -281,11 +330,12 @@ class CEOS(Device):
 
 
 class Host(Device):
-    def __init__(self, name):
-        super().__init__(name)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         # Overriding defaults
         self.type = 'host'
         self.image = 'alpine-host:latest'
+        self.default_network = 'none'
         # CMD will contain a list of IPs to assign to interfaces
         self.command = []
 
@@ -294,33 +344,15 @@ class Host(Device):
         prefix = netaddr.IPNetwork(ip)
         return prefix.prefixlen < 32
 
-    def add_ip(self, ip):
+    def add_ip(self, ip, intf):
         LOG.debug("Adding IP address command line argument for IP {}".format(ip))
         if self._verify_addr(ip):
-            self.command.append(ip)
-    
-    def _create(self):
-        # This code is to override the default behaviour of connecting
-        # the first interface to the default docker bridge
-        # We're pulling the first network name from the list of
-        # interfaces (which may contain >1 elements)
-        # and overriding the default network with this name
-        int_name = next(iter(self.interfaces))
-        first_link = self.interfaces.pop(int_name)
-        self.default_network = first_link.name
-        LOG.debug("\tMaking {} a default network for {}"
-                  .format(self.default_network, self.name))
-        if not first_link.network:
-            LOG.debug("\tThe network must exist in order to create a host container. Checking if it exists")
-            first_link.get_or_create()
-        LOG.debug("\tThe remaining interfaces that will be connected before the start are {}"
-                  .format(self.interfaces.keys()))
-        return super()._create()
+            self.command.append(':'.join([intf, ip]))
 
 
 class CVP(Device):
-    def __init__(self, name):
-        super().__init__(name)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         # Overriding defaults
         self.type = 'cvp'
         self.image = 'cvp:latest'
@@ -333,6 +365,37 @@ class CVP(Device):
         # Giving CVP the last IP from the OOB subnet
         return [str(prefix[-2]), str(prefix.netmask)]
 
+class Veth(object):
+    def __init__(self, name):
+        self.name = name
+
+    def _create(self):
+        cmd = "ip link add {l}-a type veth peer name {l}-b".format(l=self.name)
+        rc = run_cmd(cmd, True)
+        return rc
+
+    def _get(self):
+        cmd = "ip link show {}-b".format(self.name)
+        rc = run_cmd(cmd, True)
+        return rc
+
+    def connect(self, container, interface):
+        if self._get():
+            self._create()
+            veth_name = self.name + "-a"
+        else:
+            veth_name = self.name + "-b"
+        LOG.debug("Connecting {} to {}".format(veth_name, container.name))
+        cmd1 = "ip link set {} netns {}".format(veth_name, container.name)
+        cmd2 = "ip netns exec {} ip link set {} name {}".format(container.name, veth_name, interface)
+        cmd3 = "ip netns exec {} ip link set {} up".format(container.name, interface)
+        all_commands = [cmd1, cmd2, cmd3]
+        executed = [run_cmd(cmd, True) == 0 for cmd in all_commands]
+        if all(executed):
+            LOG.debug("Link {} is connected to container {}".format(self.name, container.name))
+        else:
+            LOG.debug("Some commands failed when connecting veth to container {}".format(container.name))     
+
 
 class Link(object):
     def __init__(self, link_type, name, link_driver=None, driver_opts=None):
@@ -340,13 +403,20 @@ class Link(object):
         self.name = '_'.join([PREFIX, name])
         self.link_type = link_type
         self.network = None
+        self.opts = driver_opts if driver_opts else {}
+
         if link_driver:
             self.driver = link_driver
         else:
             self.driver = 'bridge'
+        LOG.debug('\t The driver to be used for link {} is {}'.format(name, link_driver))
+        if self.driver == 'veth':
+            self.veth = Veth(self.name)
+        else:
+            self.veth = None
+
         if not self.driver in SUPPORTED_DRIVERS:
             LOG.error("Unsupported link driver {}".format(link_driver))
-        self.opts = driver_opts if driver_opts else {}
 
 
     def get_or_create(self):
@@ -367,22 +437,30 @@ class Link(object):
 
     def _get(self):
         LOG.debug("Trying to find an existing network with name {}".format(self.name))
+        if self.driver == 'veth':
+            return Veth(self.name)
         try:
             return DOCKER.networks.get(self.name)
         except docker.errors.NotFound:
             LOG.debug("Network {} not found".format(self.name))
             return None
 
-    def connect(self, device,*args, **kwargs):
-        LOG.debug('\tConnecting link to {}'.format(device.name))
+    def connect(self, container, interface):
+        LOG.debug('\tConnecting {}-type link to {}'.format(self.driver, container.name))
         if not self.network:
             self.get_or_create()
-        return self.network.connect(device, *args, **kwargs)
-
+        if self.driver == 'veth':
+            self.network.connect(container, interface)
+        else:
+            self.network.connect(container)
+    
+    def kill(self):
+        if self.driver == 'veth':
+            pass
 
 def main():
     # Initializing main variables
-    global PREFIX, CEOS_IMAGE, CONF_DIR, PUBLISH_BASE, OOB_PREFIX, VERSION
+    global PREFIX, CEOS_IMAGE, CONF_DIR, PUBLISH_BASE, OOB_PREFIX, VERSION, SUDO
 
     # Assigning arguments
     args    = parse_args()
@@ -391,6 +469,7 @@ def main():
     t_file  = os.path.join(os.getcwd(), args.topology)
     t_fn    = os.path.split(args.topology)[-1]
     destroy = args.destroy
+    SUDO    = os.getenv('SUDO', args.sudo)
     PREFIX  = t_fn.split('.')[0]
 
     # Logging settings
