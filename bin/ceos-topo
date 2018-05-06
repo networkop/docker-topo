@@ -335,7 +335,8 @@ class Host(Device):
         # Overriding defaults
         self.type = 'host'
         self.image = 'alpine-host:latest'
-        self.default_network = 'none'
+        if self.start_mode == 'manual':
+            self.default_network = 'none'
         # CMD will contain a list of IPs to assign to interfaces
         self.command = []
 
