@@ -11,6 +11,8 @@ python:
   - 3.6
 
 sudo: required
+virtualenv:
+  system_site_packages: true
 
 before_install:
   - cd topo-extra-files/host/
@@ -19,7 +21,7 @@ before_install:
 
 install:
   - sudo pip install git+https://github.com/networkop/arista-ceos-topo.git@dev
-  - sudo pip install pyyam
+  - sudo pip install pyyaml
 
 jobs:
   include:
