@@ -10,7 +10,7 @@ language: python
 python:
   - 3.6
 
-sudo: false
+sudo: required
 
 before_install:
   - cd topo-extra-files/host/
@@ -22,18 +22,12 @@ install:
 
 jobs:
   include:
-    - stage: version 1 testing
+    - stage: Version 1 testing
       script:
-        - docker-topo --create --debug test/v1/t1.yml
-        - docker exec -it t1_host-1 sudo ping -c 3 12.12.12.2
-        - docker-topo --destroy --debug test/v1/t1.yml    
-    - stage: version 2 testing
+        - sudo test/v1/v1-t1.yml
+    - stage: Version 2 testing
       script:
-        - docker-topo --create --debug test/v2/veth.yml
-        - docker exec -it veth_host1 sudo ping -c 3 12.12.12.2
-        - docker exec -it veth_host1 sudo ping -c 3 13.13.13.3
-        - docker exec -it veth_host3 sudo ping -c 3 23.23.23.2
-        - docker-topo --destroy --debug test/v2/veth.yml
+        - sudo test/v2/v2-t1.yml
 
 notifications:
   email: false

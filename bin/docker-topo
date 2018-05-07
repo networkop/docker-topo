@@ -8,10 +8,14 @@ import docker
 import os.path
 import netaddr
 import subprocess
+from pyroute2 import IPDB
+from pyroute2 import netns
+from pyroute2 import NSPopen
 
 # Global constants
 LOG = logging.getLogger(__name__)
 DOCKER = docker.from_env()
+netns.NETNS_RUN_DIR = "/var/run/docker/netns"
 SUPPORTED_DRIVERS = ['macvlan', 'bridge', 'veth']
 DEVNULL = open(os.devnull, 'w')
 
@@ -191,6 +195,7 @@ class Device(object):
         else:
             self.default_network = 'bridge'
         self.pid = None
+        self.sandbox = None
         # Setting up extra variables
         self.interfaces = dict()
         self.volumes = dict()
@@ -246,14 +251,8 @@ class Device(object):
             self._update()
             self.pid = self.container.attrs.get('State', {}).get('Pid', None)
             LOG.debug('\tPID for container {} is {}'.format(self.name, self.pid))
-            cmd1 = "mkdir -p /var/run/netns"
-            rc = run_cmd(cmd1, True)
-            if rc:
-                LOG.debug('\tFailed to create /var/run/netns directory')
-            cmd2 = "ln -sf /proc/{}/ns/net /var/run/netns/{}".format(self.pid, self.name)
-            rc = run_cmd(cmd2, True)
-            if rc:
-                LOG.debug('\tFailed to create symlink /proc/{}/ns/net -> /var/run/netns/{}'.format(self.pid, self.name))
+            self.sandbox = self.container.attrs.get('NetworkSettings', {}).get('SandboxKey', None)
+            LOG.debug('\tSandbox key for container {} is {}'.format(self.name, self.pid))
             self.container.pause()
             self._attach()
             self.container.unpause()
@@ -271,7 +270,7 @@ class Device(object):
             LOG.debug('\tAttaching container {} interface {} to its link'
                       .format(self.name, interface))
             link = self.interfaces[interface]
-            link.connect(self.container, interface)
+            link.connect(self, interface)
         return
 
     def kill(self):
@@ -286,10 +285,6 @@ class Device(object):
             )
             return 1
         self.container.kill()
-
-        if self.start_mode == 'manual':
-            cmd = "rm /var/run/netns/{}".format(self.name)
-            run_cmd(cmd, True)
         return 0
 
     def publish_port(self, *args, **kwargs):
@@ -374,34 +369,34 @@ class CVP(Device):
 class Veth(object):
     def __init__(self, name):
         self.name = name
+        self.ipdb = IPDB()
+        self.sideA = "{}-a".format(name)
+        self.sideB = "{}-b".format(name)
 
     def _create(self):
-        cmd = "ip link add {l}-a type veth peer name {l}-b".format(l=self.name)
-        rc = run_cmd(cmd, True)
-        return rc
+        return self.ipdb.create(ifname=self.sideA, kind='veth', peer=self.sideB).commit()
+         
+    def _get(self, intf):
+        return self.ipdb.interfaces.get(intf)
 
-    def _get(self):
-        cmd = "ip link show {}-b".format(self.name)
-        rc = run_cmd(cmd, True)
-        return rc
-
-    def connect(self, container, interface):
-        if self._get():
+    def connect(self, device, interface):
+        ns_fd = os.open('/proc/{}/ns/net'.format(device.pid), os.O_RDONLY) 
+        veth = self._get(self.sideB)
+        if not veth:
             self._create()
-            veth_name = self.name + "-a"
-        else:
-            veth_name = self.name + "-b"
-        LOG.debug("Connecting {} to {}".format(veth_name, container.name))
-        cmd1 = "ip link set {} netns {}".format(veth_name, container.name)
-        cmd2 = "ip netns exec {} ip link set {} name {}".format(container.name, veth_name, interface)
-        cmd3 = "ip netns exec {} ip link set {} up".format(container.name, interface)
-        all_commands = [cmd1, cmd2, cmd3]
-        executed = [run_cmd(cmd, True) == 0 for cmd in all_commands]
-        if all(executed):
-            LOG.debug("Link {} is connected to container {}".format(self.name, container.name))
-        else:
-            LOG.debug("Some commands failed when connecting veth to container {}".format(container.name))     
-
+            veth = self._get(self.sideA)
+        LOG.debug("Connecting {} to {}".format(veth.ifname, device.name))
+        with veth as i:
+            i.ifname = interface
+            i.net_ns_fd = ns_fd
+            i.up()
+            # TODO Could add veth.add_ip('1.1.1.1/24') and get rid of set_ips.sh script
+            LOG.debug("Create an interface for container {}: {}".format(device.name, i.review()))
+        ns_name = device.sandbox.split('/')[-1]
+        nsp = NSPopen(ns_name, ['ip', 'link', 'set', 'dev', interface, 'up'], stdout=subprocess.PIPE)
+        nsp.wait()
+        nsp.release()
+ 
 
 class Link(object):
     def __init__(self, link_type, name, link_driver=None, driver_opts=None):
@@ -450,14 +445,14 @@ class Link(object):
             LOG.debug("Network {} not found".format(self.name))
             return None
 
-    def connect(self, container, interface):
-        LOG.debug('\tConnecting {}-type link to {}'.format(self.driver, container.name))
+    def connect(self, device, interface):
+        LOG.debug('\tConnecting {}-type link to {}'.format(self.driver, device.name))
         if not self.network:
             self.get_or_create()
         if self.driver == 'veth':
-            self.network.connect(container, interface)
+            self.network.connect(device, interface)
         else:
-            self.network.connect(container)
+            self.network.connect(device.container)
     
     def kill(self):
         if self.driver == 'veth':

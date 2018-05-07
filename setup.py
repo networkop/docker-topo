@@ -16,6 +16,7 @@ setup(
         'pyyaml',
         'docker',
         'netaddr'
+        'pyroute2'
     ],
     url='https://github.com/networkop/arista-ceos-topo',
     license='BSD3',
