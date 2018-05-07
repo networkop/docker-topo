@@ -3,22 +3,25 @@ import argparse
 import logging
 import yaml
 import os
+import sys
 import docker
 import os.path
 import netaddr
 import subprocess
 
+# Global constants
 LOG = logging.getLogger(__name__)
 DOCKER = docker.from_env()
-CONF_DIR = './config'
-PREFIX = 'CEOS-LAB'
-CEOS_IMAGE = 'ceos:latest'
-PUBLISH_BASE = 8000
-OOB_PREFIX = '192.168.100.0/24'
-VERSION = "1"
-SUDO = None
 SUPPORTED_DRIVERS = ['macvlan', 'bridge', 'veth']
 DEVNULL = open(os.devnull, 'w')
+
+# Global variables
+VERSION = 1
+CEOS_IMAGE = 'ceos:latest'
+CONF_DIR = './config'
+PUBLISH_BASE = 8000
+OOB_PREFIX = '192.168.100.0/24'
+PREFIX = 'CEOS-LAB'
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Tool to create cEOS topologies")
@@ -38,10 +41,6 @@ def parse_args():
         help="Destroy topology",
         action="store_true"
     )
-    group.add_argument(
-        "--sudo",
-        help="Sudo password"
-    )
     parser.add_argument(
         "topology",
         help='Topology file',
@@ -58,13 +57,13 @@ def run_cmd(command, sudo=False):
         sudo_prefix = ''
     cmd = sudo_prefix + command
     LOG.debug("Running command: {}".format(cmd))
-    return subprocess.call(cmd, shell=True, stdout=DEVNULL, stderr=subprocess.STDOUT)
+    return subprocess.call(cmd, shell=True, stdout=DEVNULL)
 
 def enable_lldp(networks):
     for each in networks:
         try:
             cmd = 'echo 16384 > /sys/class/net/br-{}/bridge/group_fwd_mask'.format(each.network.id[:12])
-            run_cmd(cmd)
+            run_cmd(cmd, True)
         except:
             continue
     return
@@ -72,7 +71,7 @@ def enable_lldp(networks):
 
 def kill_agetty():
     cmd = 'pkill agetty'
-    run_cmd(cmd)
+    run_cmd(cmd, True)
     return
 
 def parse_endpoints(devices, endpoints, link, idx):
@@ -186,10 +185,13 @@ class Device(object):
         self.image = ''
         self.command = ''
         self.environment = dict()
-        self.default_network = 'bridge'
         self.start_mode = start_mode
+        if self.start_mode == 'manual':
+            self.default_network = 'none'
+        else:
+            self.default_network = 'bridge'
         self.pid = None
-        # Setting up extra variablesSUDO
+        # Setting up extra variables
         self.interfaces = dict()
         self.volumes = dict()
         self.ports = dict()
@@ -255,11 +257,6 @@ class Device(object):
             self.container.pause()
             self._attach()
             self.container.unpause()
-            # This is to fix the scripts who assign IPs in entrypoint
-            if self.type == 'host':
-                LOG.debug("Running set ips script")
-                rc, output = self.container.exec_run("/set_ips.sh")
-                LOG.debug("RC = {}, output = {}".format(rc, output))
         else:
             LOG.info('Unsupported container start mode {}'.format(self.start_mode))
         return 0
@@ -294,6 +291,9 @@ class Device(object):
             cmd = "rm /var/run/netns/{}".format(self.name)
             run_cmd(cmd, True)
         return 0
+
+    def publish_port(self, *args, **kwargs):
+        raise NotImplementedError("Can't publish ports for {}".format(self.__class__))
 
 class CEOS(Device):
     def __init__(self, *args, **kwargs):
@@ -335,8 +335,6 @@ class Host(Device):
         # Overriding defaults
         self.type = 'host'
         self.image = 'alpine-host:latest'
-        if self.start_mode == 'manual':
-            self.default_network = 'none'
         # CMD will contain a list of IPs to assign to interfaces
         self.command = []
 
@@ -350,6 +348,13 @@ class Host(Device):
         if self._verify_addr(ip):
             self.command.append(':'.join([intf, ip]))
 
+    def start(self, *args, **kwargs):
+        super().start(*args, **kwargs)
+        if self.start_mode == 'manual':
+        # This is to fix the scripts who assign IPs in entrypoint
+            LOG.debug("Running set_ips script")
+            rc, output = self.container.exec_run("/set_ips.sh")
+            LOG.debug("RC = {}, output = {}".format(rc, output))
 
 class CVP(Device):
     def __init__(self, *args, **kwargs):
@@ -411,11 +416,10 @@ class Link(object):
         else:
             self.driver = 'bridge'
         LOG.debug('\t The driver to be used for link {} is {}'.format(name, link_driver))
-        if self.driver == 'veth':
-            self.veth = Veth(self.name)
-        else:
-            self.veth = None
 
+        if link_type == 'mpoint' and self.driver == 'veth':
+            LOG.error('\tVeth driver is not supported with multipoint links')
+        
         if not self.driver in SUPPORTED_DRIVERS:
             LOG.error("Unsupported link driver {}".format(link_driver))
 
@@ -461,7 +465,7 @@ class Link(object):
 
 def main():
     # Initializing main variables
-    global PREFIX, CEOS_IMAGE, CONF_DIR, PUBLISH_BASE, OOB_PREFIX, VERSION, SUDO
+    global PREFIX, CEOS_IMAGE, CONF_DIR, PUBLISH_BASE, OOB_PREFIX, VERSION
 
     # Assigning arguments
     args    = parse_args()
@@ -470,7 +474,6 @@ def main():
     t_file  = os.path.join(os.getcwd(), args.topology)
     t_fn    = os.path.split(args.topology)[-1]
     destroy = args.destroy
-    SUDO    = os.getenv('SUDO', args.sudo)
     PREFIX  = t_fn.split('.')[0]
 
     # Logging settings
@@ -497,12 +500,12 @@ def main():
     CONF_DIR = t_yml.get('CONF_DIR',os.getenv('CONF_DIR', CONF_DIR))
     PUBLISH_BASE = int(t_yml.get('PUBLISH_BASE', os.getenv('PUBLISH_BASE', PUBLISH_BASE)))
     OOB_PREFIX = t_yml.get('OOB_PREFIX',os.getenv('OOB_PREFIX', OOB_PREFIX))
-    VERSION = str(t_yml.get('VERSION',os.getenv('VERSION', VERSION)))
+    VERSION = int(t_yml.get('VERSION',os.getenv('VERSION', VERSION)))
 
     # Versioned parsing logic
-    if VERSION == "1":
+    if VERSION == 1:
         devices, links = parse_v1(t_yml)
-    elif VERSION == "2":
+    elif VERSION == 2:
         devices, links = parse_v2(t_yml)
     else:
         LOG.error("Specified version {} is not supported".format(VERSION))
