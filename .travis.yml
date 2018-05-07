@@ -12,9 +12,6 @@ python:
 
 sudo: required
 
-virtualenv:
-  system_site_packages: true
-
 before_install:
   - cd topo-extra-files/host/
   - docker build -t alpine-host .
