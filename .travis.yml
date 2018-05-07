@@ -18,7 +18,8 @@ before_install:
   - cd ../../
 
 install:
-  - pip install git+https://github.com/networkop/arista-ceos-topo.git@dev
+  - sudo pip install git+https://github.com/networkop/arista-ceos-topo.git@dev
+  - sudo pip install pyyam
 
 jobs:
   include:
@@ -27,7 +28,7 @@ jobs:
         - test/v1/v1-t1.sh
     - stage: Version 2 testing
       script:
-        - test/v2/v2-t1.sh
+        - sudo test/v2/v2-t1.sh
 
 notifications:
   email: false
