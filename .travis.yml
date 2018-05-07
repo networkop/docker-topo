@@ -18,16 +18,16 @@ before_install:
   - cd ../../
 
 install:
-  - sudo pip install git+https://github.com/networkop/arista-ceos-topo.git@dev
+  - pip install git+https://github.com/networkop/arista-ceos-topo.git@dev
 
 jobs:
   include:
     - stage: Version 1 testing
       script:
-        - sudo test/v1/v1-t1.sh
+        - test/v1/v1-t1.sh
     - stage: Version 2 testing
       script:
-        - sudo test/v2/v2-t1.sh
+        - test/v2/v2-t1.sh
 
 notifications:
   email: false
