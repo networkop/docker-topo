@@ -11,6 +11,7 @@ python:
   - 3.6
 
 sudo: required
+
 virtualenv:
   system_site_packages: true
 
