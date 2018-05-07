@@ -24,10 +24,10 @@ jobs:
   include:
     - stage: Version 1 testing
       script:
-        - sudo test/v1/v1-t1.yml
+        - sudo test/v1/v1-t1.sh
     - stage: Version 2 testing
       script:
-        - sudo test/v2/v2-t1.yml
+        - sudo test/v2/v2-t1.sh
 
 notifications:
   email: false
