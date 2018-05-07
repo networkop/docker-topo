@@ -15,7 +15,7 @@ setup(
     install_requires=[
         'pyyaml',
         'docker',
-        'netaddr'
+        'netaddr',
         'pyroute2'
     ],
     url='https://github.com/networkop/arista-ceos-topo',
