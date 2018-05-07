@@ -1,13 +1,17 @@
 # docker-topo
 Docker network topology builder
 
-[![Build Status](https://travis-ci.org/networkop/arista-docker-topo.svg?branch=dev)](https://travis-ci.org/networkop/arista-docker-topo)
+[![Build Status](https://travis-ci.org/networkop/arista-ceos-topo.svg?branch=dev)](https://travis-ci.org/networkop/arista-ceos-topo)
 
+# TODO
+
+* Write more tests
+* Re-write veth shell commands with [pyroute2](http://docs.pyroute2.org/index.html)
 
 # Installation
 
 ````bash
-pip install git+https://github.com/networkop/arista-docker-topo.git@dev
+pip install git+https://github.com/networkop/arista-ceos-topo.git@dev
 ````
 
 # Usage
