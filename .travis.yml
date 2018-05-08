@@ -8,7 +8,7 @@ services:
 language: python
 
 python:
-  - 3.4
+  - 3.6
 
 sudo: required
 
@@ -25,10 +25,14 @@ jobs:
   include:
     - stage: Version 1 testing
       script:
-        - sudo test/v1/v1-t1.sh
+        - sudo python -m pip list
+        - sudo -E python -m pip list
+        - sudo PATH=$(dirname `which python`):$PATH python -m pip list
+        - sudo -E PATH=$(dirname `which python`):$PATH python -m pip list
+        - sudo -E "PATH=$PATH" test/v1/v1-t1.sh
     - stage: Version 2 testing
       script:
-        - sudo test/v2/v2-t1.sh
+        - sudo env "PATH=$PATH"test/v2/v2-t1.sh
 
 notifications:
   email: false
