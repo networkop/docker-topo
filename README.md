@@ -6,7 +6,6 @@ Docker network topology builder
 # TODO
 
 * Write more tests
-* Re-write veth shell commands with [pyroute2](http://docs.pyroute2.org/index.html)
 
 # Installation
 
@@ -104,7 +103,9 @@ links:
   - endpoints: ["host1:eth1", "host2:eth1"]
 ```
 
-> Note: For **veth** link driver all interfaces must match the ones you expect to see inside a container. So if you expect to connect your link to DeviceA interface eth0, the endpoint definition should be "DeviceA:eth0"
+> Note 1: For **veth** link driver all interfaces must match the ones you expect to see inside a container. So if you expect to connect your link to DeviceA interface eth0, the endpoint definition should be "DeviceA:eth0"
+
+> Note 2: **veth** driver is talking to netlink and making changse to namespaces; make sure you always use `sudo` when building **veth**-based topologies
 
 There should be several examples in the `./topo-extra-files/examples` directory
 
@@ -120,7 +121,7 @@ There should be several examples in the `./topo-extra-files/examples` directory
 ```
 
 ```bash
-docker-topo --create topo-extra-files/examples/v2/2-node.yml
+sudo docker-topo --create topo-extra-files/examples/v2/2-node.yml
 ```
 
 # Example 2 - Creating a 3-node topology (with config)
