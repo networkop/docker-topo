@@ -19,6 +19,7 @@ before_install:
 
 install:
   - pip install git+https://github.com/networkop/arista-ceos-topo.git@dev
+  - sudo apt-get install python-yaml
 
 jobs:
   include:
