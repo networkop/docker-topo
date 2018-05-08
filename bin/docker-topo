@@ -196,6 +196,7 @@ class Device(object):
             self.default_network = 'bridge'
         self.pid = None
         self.sandbox = None
+        self.sysctls = {'net.ipv4.ip_forward': 1}
         # Setting up extra variables
         self.interfaces = dict()
         self.volumes = dict()
@@ -227,6 +228,7 @@ class Device(object):
                 detach=True,
                 hostname=self.name,
                 ports=self.ports,
+                sysctls=self.sysctls,
                 labels={PREFIX: self.name}
             )
 
