@@ -350,6 +350,7 @@ class Host(Device):
             LOG.debug("Running set_ips script")
             rc, output = self.container.exec_run("/set_ips.sh")
             LOG.debug("RC = {}, output = {}".format(rc, output))
+        return 0
 
 class CVP(Device):
     def __init__(self, *args, **kwargs):
