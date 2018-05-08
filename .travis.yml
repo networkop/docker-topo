@@ -24,10 +24,6 @@ jobs:
   include:
     - stage: Version 1 testing
       script:
-        - sudo python -m pip list
-        - sudo -E python -m pip list
-        - sudo PATH=$(dirname `which python`):$PATH python -m pip list
-        - sudo -E PATH=$(dirname `which python`):$PATH python -m pip list
         - sudo env "PATH=$PATH" test/v1/v1-t1.sh
     - stage: Version 2 testing
       script:
