@@ -84,6 +84,7 @@ Both bridge and veth driver have their own set of caveats. Keep them in mind whe
 | multipoint links | supported | not supported |
 | sudo privileges | not required | required | 
 | docker modifications | requires [patched][1] docker deamon | uses standard docker daemon |
+| L2 multicast | only LLDP | supported | 
  
 Currently mixing both **bridge** and **veth** drivers is theoretially supported but hasn't been thoroughly tested. Make sure that **veth** Interface names start AFTER the libnetworks', e.g. if libnetwork (macvlan or bridge) connected 5 interfaces to a single container, the veth naming must start from **eth5**.
 
