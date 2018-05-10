@@ -52,11 +52,11 @@ Each connected device, or link endpoint, is encoded as "DeviceName:InterfaceName
   * **host** - alpine-host image is going to be used
   * **cvp** - cvp image is going to be used
   * For anything else Arista cEOS image will be used 
-* **InterfaceName** does not have to match the actual link name inside the container, only the sequence number has to match. (Internally all links are sorted alphabetically before being attached). Also see notes for v2 **veth** driver.
+* **InterfaceName** does not have to match the actual link name inside the container, only the sequence number has to match. Internally all links are sorted alphabetically before being attached and libnetwork numbers them sequentially starting from eth0. See caveats section below.
 * **IP** - Optional parameter that works **ONLY** for alpine-host devices. This will attempt to configure a provided IP address inside a container.
 
 ## Topology file v2
-Each link in a `links` array is a dictionary in the following format:
+Each link in a `links` array is a dictionary with the following format:
 ```yaml
 links:
   - endpoints:
@@ -67,14 +67,25 @@ links:
       parent: wlp58s0
     endpoints: ["Device-A:Interface-1", "Device-B:Interface-2"]
 ```
-Each link supports the following objects:
+Each link supports the following elements:
 
-* **endpoints** - the only mandatory element, contains a list of endpoints to be connected to a link. The endpoint definition is similar to the version 1, described above
+* **endpoints** - the only mandatory element, contains a list of endpoints to be connected to a link. The endpoint definition is similar to the version 1 described above
 * **driver** - defines the link driver to be used. Currently supported drivers are **veth, bridge, macvlan**. When driver is not specified, default **bridge** driver is used. The following limitations apply:
   * **macvlan** driver will require a mandatory **driver_opts** object described below
-  * **veth** is mutually exclusive with any other driver. This driver is talking to netlink and making changse to namespaces; make sure you always use `sudo` when building **veth**-based topologies
+  * **veth** driver is talking directly to netlink (no libnetwork involved) and making changes to namespaces
 * **driver_opts** - optional object containing driver options as required by Docker's libnetwork. Currently only used for macvlan's parent interface definition
 
+## Bridge vs veth caveats
+
+Both bridge and veth driver have their own set of caveats. Keep them in mind when choosing a driver:
+
+| Features | bridge | veth |
+|--------|------|------|
+| multipoint links | supported | not supported |
+| sudo privileges | not required | required | 
+| docker modifications | requires [patched][1] docker deamon | uses standard docker daemon |
+ 
+Currently mixing both **bridge** and **veth** drivers is theoretially supported but hasn't been thoroughly tested. Make sure that **veth** Interface names start AFTER the libnetworks', e.g. if libnetwork (macvlan or bridge) connected 5 interfaces to a single container, the veth naming must start from **eth5**.
 
 ## (Optional) Global variables
 Along with the mandatory `link` array, there are a number of options that can be specified to override some of the default settings. Below are the list of options with their default values:
@@ -163,3 +174,7 @@ cEOS-1>
 ```bash
 docker-topo --destroy topo-extra-files/examples/3-node.yml
 ```
+
+
+
+[1]: https://networkop.co.uk/post/2018-03-03-docker-multinet/
