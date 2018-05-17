@@ -1,0 +1,6 @@
+VERSION: 2
+CEOS_IMAGE: ceosimage:latest
+PUBLISH_BASE: 9000
+driver: veth
+links:
+  - endpoints: ["host1:eth1", "host2:eth1"]

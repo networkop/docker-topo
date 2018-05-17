@@ -1,18 +1,14 @@
 #!/bin/sh
 
-#################
-# Parse arguments
-#################
-
-IP=$1
-UPLINK="eth1"
 
 # Hardcoding LACP to none for now
 # May need to revisit later
 TMODE="none"
+UPLINK='eth'
 
 if [ -z "$TMODE" ]; then
   TMODE='none'
+  
 fi
 
 
@@ -76,15 +72,33 @@ if [ "$TMODE" == 'lacp' ] || [ "$TMODE" == 'static' ]; then
   teamd -d -f $TARG
 
   ip link set team0 up
-  UPLINK="team0"
+  UPLINK="team"
 fi
 
 ################
 # IP addr setup
 ################
 
-ip addr flush dev "$UPLINK"
-ip addr add "$IP" dev "$UPLINK"
+
+
+cat << EOT >> /set_ips.sh
+#!/bin/sh
+args="$@"
+for arg in \$args; do
+  eval ip=\`echo \$arg | cut -d':' -f2\`
+  eval int=\`echo \$arg |cut -d':' -f1\`
+  cmd1="sudo ip addr flush dev \$int"
+  cmd2="sudo ip addr add \$ip dev \$int"
+  echo \$cmd1
+  echo \$cmd2
+  eval \$cmd1
+  eval \$cmd2
+done
+EOT
+
+chmod +x /set_ips.sh
+
+/set_ips.sh
 
 #####################
 # Enter sleeping loop

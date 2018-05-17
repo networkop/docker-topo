@@ -4,7 +4,7 @@ IPADDR_2=$1
 NETMASK_2=$2
 
 # Steal the DHCP IP off the first 2 interfaces
-IPADDR_1=$(ip route get 8.8.8.8 | awk 'NR==1 {print $NF}')
+IPADDR_1=$(ip route get 8.8.8.8 | awk 'NR==1 {print $7}')
 NETMASK_1=$(ifconfig | grep $IPADDR_1 | awk 'NR==1 {print $4}')
 GW=$(ip route get 8.8.8.8 | awk 'NR==1 {print $3}')
 
@@ -14,6 +14,10 @@ GW=$(ip route get 8.8.8.8 | awk 'NR==1 {print $3}')
 # unset the stolen IP off the first 2 interfaces
 ip addr flush dev eth0
 #ip addr flush dev eth1
+
+# disable offload to prevent TCP checksum corruption
+ethtool -K eth1 rx off > /dev/null 2>&1
+ethtool -K eth1 tx off > /dev/null 2>&1
 
 # Fill in the IP values to be used by CVP VM
 sed -i "s/IPADDR_1/${IPADDR_1}/" /tmp/answers.yaml

@@ -8,4 +8,6 @@ links:
 
 PREFIX: leaf-spine
 CONF_DIR: ./config
-CEOS_IMAGE: veos:latest
+CEOS_IMAGE: ceosimage:latest
+PUBLISH_BASE: 9000
+

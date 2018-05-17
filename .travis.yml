@@ -1,0 +1,33 @@
+---
+os:
+  - linux
+
+services:
+  - docker
+
+language: python
+
+python:
+  - 3.6
+
+sudo: required
+
+before_install:
+  - cd topo-extra-files/host/
+  - docker build -t alpine-host .
+  - cd ../../
+
+install:
+  - pip install git+https://github.com/networkop/arista-ceos-topo.git@dev
+
+jobs:
+  include:
+    - stage: Version 1 testing
+      script:
+        - sudo env "PATH=$PATH" test/v1/v1-t1.sh
+    - stage: Version 2 testing
+      script:
+        - sudo env "PATH=$PATH" test/v2/v2-t1.sh
+
+notifications:
+  email: false
