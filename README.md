@@ -1,7 +1,7 @@
 # docker-topo
 Docker network topology builder
 
-[![Build Status](https://travis-ci.org/networkop/arista-ceos-topo.svg?branch=dev)](https://travis-ci.org/networkop/arista-ceos-topo)
+[![Build Status](https://travis-ci.org/networkop/arista-ceos-topo.svg)](https://travis-ci.org/networkop/arista-ceos-topo)
 
 # TODO
 
@@ -10,7 +10,7 @@ Docker network topology builder
 # Installation
 
 ````bash
-pip install git+https://github.com/networkop/arista-ceos-topo.git@dev
+pip install git+https://github.com/networkop/arista-ceos-topo.git
 ````
 
 # Usage
