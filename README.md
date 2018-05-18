@@ -13,7 +13,7 @@ Docker network topology builder
 # Installation
 
 ````bash
-python 3 -m pip install git+https://github.com/networkop/arista-ceos-topo.git
+python3 -m pip install git+https://github.com/networkop/arista-ceos-topo.git
 ````
 
 > Note: Python 2.x is not supported
