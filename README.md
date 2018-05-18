@@ -6,6 +6,9 @@ Docker network topology builder
 # TODO
 
 * Write more tests
+* Multi-host topologies with VXLAN links - not sure if veth + linux bridges are needed or if its possible to get away with macvlan (bridge mode) over a vxlan interface???
+* Replace NSPopen with ns.link or IPDB as [suggested](https://github.com/networkop/arista-ceos-topo/commit/f95c0b0221d33d94caf24950dd19c043766b867c#commitcomment-29024828) by svinota
+* Add a configurable subnet option for docker bridge networks
 
 # Installation
 
