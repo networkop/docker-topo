@@ -10,7 +10,7 @@ import netaddr
 import subprocess
 from pyroute2 import IPDB
 from pyroute2 import netns
-from pyroute2 import NSPopen
+from pyroute2 import NetNS
 
 # Global constants
 LOG = logging.getLogger(__name__)
@@ -396,9 +396,9 @@ class Veth(object):
             # TODO Could add veth.add_ip('1.1.1.1/24') and get rid of set_ips.sh script
             LOG.debug("Create an interface for container {}: {}".format(device.name, i.review()))
         ns_name = device.sandbox.split('/')[-1]
-        nsp = NSPopen(ns_name, ['ip', 'link', 'set', 'dev', interface, 'up'], stdout=subprocess.PIPE)
-        nsp.wait()
-        nsp.release()
+        with IPDB(nl=NetNS(ns_name)) as ns:
+            with ns.interfaces[interface] as i:
+                i.up()
  
 
 class Link(object):
