@@ -16,7 +16,7 @@ Setup python3 virtualenv (optional step)
 ```bash
 python3 -m pip install virtualenv
 python3 -m virtualenv testdir; cd testdir
-bin/activate 
+source bin/activate 
 ```
 
 ````bash
