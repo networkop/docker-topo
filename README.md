@@ -11,13 +11,16 @@ Docker network topology builder
 
 # Installation
 
-Setup python3 virtualenv (optional step)
+With Python virtualenv (recommended)
 
 ```bash
 python3 -m pip install virtualenv
 python3 -m virtualenv testdir; cd testdir
 source bin/activate 
+pip install git+https://github.com/networkop/arista-ceos-topo.git
 ```
+
+Without virtualenv
 
 ````bash
 python3 -m pip install git+https://github.com/networkop/arista-ceos-topo.git
