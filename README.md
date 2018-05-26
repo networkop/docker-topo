@@ -50,29 +50,16 @@ optional arguments:
 
 Topology file is a YAML file describing how docker containers are to be interconnected.
 This information is stored in the `links` variable which 
-contains a list of links, each described by a unique set of connected interfaces. 
-Currently, two versions of link definitions are supported.
+contains a list of links. Each link is described by a unique set of connected interfaces. 
+There are several versions of topology file formats. 
 
 ## Topology file v1
-Each link in a `links` array is itself a list, identifying all connected devices:
-```yaml
-links:
-  - ["Device-A:Interface-1", "Device-B:Interface-2"]
-  - ["Device-A:Interface-2", "Device-B:Interface-2", "cvp-1"]
-  - ["Device-A:Interface-3", "Host-1:Interface-1", "host-2", "host3:Interface-2:192.168.0.10/24"]
-```
-Each connected device, or link endpoint, is encoded as "DeviceName:InterfaceName:IP" with the following constraints:
-
-* **DeviceName** determines which docker image is going to be used by (case-insensitive) matching of the following strings:
-  * **host** - alpine-host image is going to be used
-  * **cvp** - cvp image is going to be used
-  * For anything else Arista cEOS image will be used 
-* **InterfaceName** does not have to match the actual link name inside the container, only the sequence number has to match. Internally all links are sorted alphabetically before being attached and libnetwork numbers them sequentially starting from eth0. See caveats section below.
-* **IP** - Optional parameter that works **ONLY** for alpine-host devices. This will attempt to configure a provided IP address inside a container.
+This version is considered legacy and is documented [here](https://github.com/networkop/arista-ceos-topo/blob/master/v1.md). 
 
 ## Topology file v2
 Each link in a `links` array is a dictionary with the following format:
 ```yaml
+VERSION: 2
 links:
   - endpoints:
       - "Device-A:Interface-2" 
@@ -82,15 +69,24 @@ links:
       parent: wlp58s0
     endpoints: ["Device-A:Interface-1", "Device-B:Interface-2"]
 ```
-Each link supports the following elements:
+Each link dictionary supports the following elements:
 
-* **endpoints** - the only mandatory element, contains a list of endpoints to be connected to a link. The endpoint definition is similar to the version 1 described above
+* **endpoints** - the only mandatory element, contains a list of endpoints to be connected to a link. 
 * **driver** - defines the link driver to be used. Currently supported drivers are **veth, bridge, macvlan**. When driver is not specified, default **bridge** driver is used. The following limitations apply:
   * **macvlan** driver will require a mandatory **driver_opts** object described below
   * **veth** driver is talking directly to netlink (no libnetwork involved) and making changes to namespaces
 * **driver_opts** - optional object containing driver options as required by Docker's libnetwork. Currently only used for macvlan's parent interface definition
 
-## Bridge vs veth caveats
+Each link endpoint is encoded as "DeviceName:InterfaceName:IPPrefix" with the following contraints:
+
+* **DeviceName** determines which docker image is going to be used by (case-insensitive) matching of the following strings:
+  * **host** - [alpine-host][alpine-host] image is going to be used
+  * **cvp** - [cvp](https://github.com/networkop/arista-ceos-topo/tree/master/topo-extra-files/cvp) image is going to be used
+  * For anything else Arista cEOS image will be used 
+* **InterfaceName** must match the exact name of the interface you expect to see inside a container. For example if you expect to connect a link to DeviceA interface eth0, endpoint definition should be "DeviceA:eth0"
+* **IPPrefix** - Optional parameter that works **ONLY** for [alpine-host][alpine-host] devices and will attempt to configure a provided IP prefix inside a container.
+
+## Bridge vs veth driver caveats
 
 Both bridge and veth driver have their own set of caveats. Keep them in mind when choosing a driver:
 
@@ -101,7 +97,19 @@ Both bridge and veth driver have their own set of caveats. Keep them in mind whe
 | docker modifications | requires [patched][1] docker deamon | uses standard docker daemon |
 | L2 multicast | only LLDP | supported | 
  
-You can mix both **bridge** and **veth** drivers in the same topology, however make sure that **bridge** driver links always come first, followed by the **veth** links. See [this topology](https://github.com/networkop/arista-ceos-topo/blob/master/topo-extra-files/examples/v2/multidriver.yml) as an example.
+You can mix both **bridge** and **veth** drivers in the same topology, however make sure that **bridge** driver links always come first, followed by the **veth** links. For example:
+
+```
+VERSION: 2
+driver: veth
+
+links:
+  - endpoints: ["Leaf1:eth1", "Leaf2:eth1"]
+    driver: 'bridge'
+  - endpoints: ["Leaf1:eth2", "Leaf2:eth2"]
+  - endpoints: ["Leaf1:eth3", "Leaf2:eth3"]
+```
+
 
 ## (Optional) Global variables
 Along with the mandatory `link` array, there are a number of options that can be specified to override some of the default settings. Below are the list of options with their default values:
@@ -112,6 +120,7 @@ CEOS_IMAGE: ceos:latest # cEOS docker image name
 CONF_DIR: './config' # Config directory to store cEOS startup configuration files
 PUBLISH_BASE: 8000 # Publish cEOS ports starting from this number
 OOB_PREFIX: '192.168.100.0/24' # Only used when link contains CVP. This prefix is assinged to CVP's eth1
+PREFIX: 'CEOS-LAB' # This will default to a topology filename (without .yml extension)
 driver: None
 ```
 
@@ -121,16 +130,15 @@ All of the capitalised global variables can also be provided as environment vari
 2. Global variables from environment variables
 3. Defaults
 
-The final **driver** variable can be used to specify the version 2 default link driver for **ALL** links at once. This is useful for **veth** type drivers:
+The final **driver** variable can be used to specify the default link driver for **ALL** links at once. This can be used to create all links with non-default **veth** type drivers:
 
 ```yaml
 VERSION: 2
 driver: veth
 links:
   - endpoints: ["host1:eth1", "host2:eth1"]
+  - endpoints: ["host1:eth2", "host3:eth1"]
 ```
-
-> Note: For **veth** link driver all interfaces must match the ones you expect to see inside a container. So if you expect to connect your link to DeviceA interface eth0, the endpoint definition should be "DeviceA:eth0"
 
 
 There should be several examples in the `./topo-extra-files/examples` directory
@@ -194,3 +202,4 @@ docker-topo --destroy topo-extra-files/examples/3-node.yml
 
 
 [1]: https://networkop.co.uk/post/2018-03-03-docker-multinet/
+[alpine-host]: https://github.com/networkop/arista-ceos-topo/tree/master/topo-extra-files/host

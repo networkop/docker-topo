@@ -1,0 +1,16 @@
+## Topology file v1
+Each link in a `links` array is itself a list, identifying all connected devices:
+```yaml
+links:
+  - ["Device-A:Interface-1", "Device-B:Interface-2"]
+  - ["Device-A:Interface-2", "Device-B:Interface-2", "cvp-1"]
+  - ["Device-A:Interface-3", "Host-1:Interface-1", "host-2", "host3:Interface-2:192.168.0.10/24"]
+```
+Each connected device, or link endpoint, is encoded as "DeviceName:InterfaceName:IP" with the following constraints:
+
+* **DeviceName** determines which docker image is going to be used by (case-insensitive) matching of the following strings:
+  * **host** - alpine-host image is going to be used
+  * **cvp** - cvp image is going to be used
+  * For anything else Arista cEOS image will be used 
+* **InterfaceName** does not have to match the actual link name inside the container, only the sequence number has to match. Internally all links are sorted alphabetically before being attached and libnetwork numbers them sequentially starting from eth0. See caveats section below.
+* **IP** - Optional parameter that works **ONLY** for alpine-host devices. This will attempt to configure a provided IP address inside a container.
