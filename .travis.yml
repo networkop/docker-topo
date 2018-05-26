@@ -28,6 +28,7 @@ jobs:
     - stage: Version 2 testing
       script:
         - sudo env "PATH=$PATH" test/v2/v2-t1.sh
+        - sudo env "PATH=$PATH" test/v2/v2-t2.sh
 
 notifications:
   email: false
