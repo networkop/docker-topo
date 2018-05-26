@@ -90,7 +90,7 @@ Both bridge and veth driver have their own set of caveats. Keep them in mind whe
 | docker modifications | requires [patched][1] docker deamon | uses standard docker daemon |
 | L2 multicast | only LLDP | supported | 
  
-Currently mixing both **bridge** and **veth** drivers is theoretially supported but hasn't been thoroughly tested. Make sure that **veth** Interface names start AFTER the libnetworks', e.g. if libnetwork (macvlan or bridge) connected 5 interfaces to a single container, the veth naming must start from **eth5**.
+You can mix both **bridge** and **veth** drivers in the same topology, however make sure that **bridge** driver links always come first, followed by the **veth** links. See [this topology](https://github.com/networkop/arista-ceos-topo/blob/master/topo-extra-files/examples/v2/multidriver.yml) as an example.
 
 ## (Optional) Global variables
 Along with the mandatory `link` array, there are a number of options that can be specified to override some of the default settings. Below are the list of options with their default values:
@@ -110,7 +110,7 @@ All of the capitalised global variables can also be provided as environment vari
 2. Global variables from environment variables
 3. Defaults
 
-The final **driver** variable can be used to specify the version 2 link driver for **ALL** links at once. This is useful for **veth** type drivers:
+The final **driver** variable can be used to specify the version 2 default link driver for **ALL** links at once. This is useful for **veth** type drivers:
 
 ```yaml
 VERSION: 2

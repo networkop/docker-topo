@@ -1,0 +1,9 @@
+VERSION: 2
+driver: veth
+CEOS_IMAGE: ceosimage:latest
+
+links:
+  - endpoints: ["Leaf1:eth1", "Leaf2:eth1"]
+    driver: 'bridge'
+  - endpoints: ["Leaf1:eth2", "Leaf2:eth2"]
+  - endpoints: ["Leaf1:eth3", "Leaf2:eth3"]

@@ -84,7 +84,6 @@ def parse_endpoints(devices, endpoints, link, idx):
     ["Device-A:Interface-1", "cvp-1", "host-1", "host-2:Eth1", "host-3:Eth2:192.168.10.30/24"]
     Updates devices dictionary
     """
-    start_mode = 'manual' if link.driver == 'veth' else 'auto'
     for endpoint in endpoints:
         # Example: ep == "host-3:Eth2:192.168.10.30/24"
         ep = endpoint.split(':')
@@ -96,16 +95,17 @@ def parse_endpoints(devices, endpoints, link, idx):
         # We only support CVP, Host and CEOS device types
         if 'cvp' in device_name.lower():
             # The below is dict.get(key, default) 
-            device = devices.get(device_name, CVP(device_name, start_mode))
+            device = devices.get(device_name, CVP(device_name))
         elif 'host' in device_name.lower():
             # Example: ep == ["Eth2","192.168.10.30/24"]
-            device = devices.get(device_name, Host(device_name, start_mode))
+            device = devices.get(device_name, Host(device_name))
             if len(ep) > 1:
                 # This means we have intf name _AND_ IP address
                 ip = ep.pop()
                 device.add_ip(ip, ep[0])            
         else:
-            device = devices.get(device_name, CEOS(device_name, start_mode))
+            # This creates default CEOS device type
+            device = devices.get(device_name, CEOS(device_name))
         if ep:
             int_name = ep.pop()
         else:
@@ -181,21 +181,18 @@ def parse_v2(t_yml):
     return devices, links
 
 class Device(object):
-    def __init__(self, name, start_mode='auto'):
-        LOG.debug('\tConstructing device {} with start_mode={}'.format(name, start_mode))
+    def __init__(self, name):
+        LOG.debug('\tConstructing device {}'.format(name))
         self.name = '_'.join([PREFIX, name])
         # Setting up defaults
         self.type = ''
         self.image = ''
         self.command = ''
         self.environment = dict()
-        self.start_mode = start_mode
-        if self.start_mode == 'manual':
-            self.default_network = 'none'
-        else:
-            self.default_network = 'bridge'
         self.pid = None
         self.sandbox = None
+        self.default_network = None
+        self.start_mode = None
         self.sysctls = {'net.ipv4.ip_forward': 1}
         # Setting up extra variables
         self.interfaces = dict()
@@ -203,6 +200,20 @@ class Device(object):
         self.ports = dict()
         # Pointer to docker SDK object
         self.container = None
+
+    def _update_start_mode(self, link):
+        new_start_mode = 'manual' if link.driver == 'veth' else 'auto'
+        LOG.debug("\tUpdating start_mode from {} to {}".format(self.start_mode, new_start_mode))
+        if not self.start_mode:
+            self.start_mode = new_start_mode
+            if self.start_mode == 'manual':
+                self.default_network = 'none'
+            else:
+                self.default_network = 'bridge'
+            LOG.debug("\tDefault network is set to {}".format(self.default_network))
+        elif self.start_mode == 'auto' and new_start_mode == 'manual':
+            self.start_mode = 'manual'
+        
 
     def _get_or_create(self):
         LOG.debug('\tObtaining a pointer to container {}'.format(self.name))
@@ -240,6 +251,7 @@ class Device(object):
 
     def start(self):
         LOG.debug('\tStarting container {}'.format(self.name))
+
         if not self.container:
             self._get_or_create()
         if self.container.status == 'running':
@@ -265,6 +277,7 @@ class Device(object):
     def connect(self, interface, link):
         LOG.debug('\tCreating a pointer to network {} for interface {}'.format(link.name, interface))
         self.interfaces[interface] = link
+        self._update_start_mode(link)
         return
 
     def _attach(self):
@@ -323,6 +336,7 @@ class CEOS(Device):
             return {}
 
     def publish_port(self, inside, outside, proto='tcp'):
+        LOG.debug("Publishing {}'s port {} to {}".format(self.name, inside, outside))
         self.ports['{}/{}'.format(inside, proto)] = outside
 
 
@@ -413,14 +427,15 @@ class Link(object):
             self.driver = link_driver
         else:
             self.driver = 'bridge'
-        LOG.debug('\t The driver to be used for link {} is {}'.format(name, link_driver))
+        LOG.debug('\t\tThe driver to be used for link {} is {}'.format(name, link_driver))
 
         if link_type == 'mpoint' and self.driver == 'veth':
-            LOG.error('\tVeth driver is not supported with multipoint links')
+            LOG.error('\t\tVeth driver is not supported with multipoint links')
         
         if not self.driver in SUPPORTED_DRIVERS:
-            LOG.error("Unsupported link driver {}".format(link_driver))
+            LOG.error("\t\tUnsupported link driver {}".format(link_driver))
 
+        self.get_or_create()
 
     def get_or_create(self):
         LOG.debug('\tObtaining a pointer to network {}'.format(self.name))
@@ -499,6 +514,7 @@ def main():
     PUBLISH_BASE = int(t_yml.get('PUBLISH_BASE', os.getenv('PUBLISH_BASE', PUBLISH_BASE)))
     OOB_PREFIX = t_yml.get('OOB_PREFIX',os.getenv('OOB_PREFIX', OOB_PREFIX))
     VERSION = int(t_yml.get('VERSION',os.getenv('VERSION', VERSION)))
+    PREFIX = t_yml.get('PREFIX',os.getenv('PREFIX', PREFIX))
 
     # Versioned parsing logic
     if VERSION == 1:

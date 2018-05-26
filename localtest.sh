@@ -16,4 +16,4 @@ for file in $(ls test/v2/*.sh); do
   sudo $file
 done
 
-echo "Local test completed successfully"
+echo "Local test completed"
