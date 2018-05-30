@@ -61,7 +61,8 @@ def run_cmd(command, sudo=False):
         sudo_prefix = ''
     cmd = sudo_prefix + command
     LOG.debug("Running command: {}".format(cmd))
-    return subprocess.call(cmd, shell=True, stdout=DEVNULL)
+    output = None if LOG.getEffectiveLevel() == logging.DEBUG else DEVNULL
+    return subprocess.call(cmd, shell=True, stdout=output, stderr=output)
 
 def enable_lldp(networks):
     for each in networks:
@@ -77,6 +78,7 @@ def kill_agetty():
     cmd = 'pkill agetty'
     run_cmd(cmd, True)
     return
+
 
 def parse_endpoints(devices, endpoints, link, idx):
     """
@@ -194,6 +196,7 @@ class Device(object):
         self.default_network = None
         self.start_mode = None
         self.sysctls = {'net.ipv4.ip_forward': 1}
+        self.entry_cmd = 'docker exec -it {} sh'.format(self.name)
         # Setting up extra variables
         self.interfaces = dict()
         self.volumes = dict()
@@ -201,7 +204,7 @@ class Device(object):
         # Pointer to docker SDK object
         self.container = None
 
-    def _update_start_mode(self, link):
+    def _update_start_mode(self, interface, link):
         new_start_mode = 'manual' if link.driver == 'veth' else 'auto'
         LOG.debug("\tUpdating start_mode from {} to {}".format(self.start_mode, new_start_mode))
         if not self.start_mode:
@@ -209,7 +212,10 @@ class Device(object):
             if self.start_mode == 'manual':
                 self.default_network = 'none'
             else:
-                self.default_network = 'bridge'
+                # Popping the current interface from the list 
+                self.interfaces.pop(interface)
+                # Default network now points to the new link
+                self.default_network = link.name
             LOG.debug("\tDefault network is set to {}".format(self.default_network))
         elif self.start_mode == 'auto' and new_start_mode == 'manual':
             self.start_mode = 'manual'
@@ -277,7 +283,7 @@ class Device(object):
     def connect(self, interface, link):
         LOG.debug('\tCreating a pointer to network {} for interface {}'.format(link.name, interface))
         self.interfaces[interface] = link
-        self._update_start_mode(link)
+        self._update_start_mode(interface, link)
         return
 
     def _attach(self):
@@ -320,6 +326,7 @@ class CEOS(Device):
                                "SKIP_ZEROTOUCH_BARRIER_IN_SYSDBINIT": 1,
                                "INTFTYPE": "eth"
                            }
+        self.entry_cmd = 'docker exec -it {} Cli'.format(self.name)
         # Overriding extra variables
         self.volumes = self._get_config()
 
@@ -377,6 +384,7 @@ class CVP(Device):
         self.ports = {'443/tcp': 443}
         self.prefix = OOB_PREFIX
         self.command = self._get_ip_mask()
+        self.entry_cmd = 'docker exec -it {} bash'.format(self.name)
 
     def _get_ip_mask(self):
         prefix = netaddr.IPNetwork(self.prefix)
@@ -538,9 +546,13 @@ def main():
     # Main logic
     if create:
         started = [device.start() == 0 for (name, device) in devices.items()]
+        LOG.info(''.join(["\nalias {}='{}'".format(name, device.entry_cmd) for (name, device) in devices.items()]))
+
         if all(started):
             LOG.info('All devices started successfully')
+
             enable_lldp(links)
+
             return 0
         else:
             LOG.info('Devices have not been started')
@@ -554,13 +566,16 @@ def main():
         DOCKER.containers.prune(
             filters={'label': PREFIX}
         )
+        LOG.info(''.join(['\nunalias {}'.format(name) for (name, device) in devices.items()]))
         kill_agetty()
+
         if all(killed):
-            LOG.info('All devices destroyed successfully')
+            LOG.info('All devices destroyed successfully')  
             return 0
         else:
             LOG.info('Devices have not been destroyed')
             return 1
+        
 
 
 if __name__ == '__main__':

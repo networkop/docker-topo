@@ -1,0 +1,11 @@
+VERSION: 2
+CEOS_IMAGE: ceosimage:latest
+driver: veth
+links:
+  - endpoints: ["Device-A:eth0", "Device-B:eth0", "cvp"]
+    driver: bridge
+  - endpoints: ["Device-A:eth1", "Device-B:eth1", "cvp"]
+    driver: bridge
+  - endpoints: ["Device-A:eth2", "Device-B:eth2"]
+  
+

@@ -176,7 +176,7 @@ mkdir config
 echo "hostname cEOS-1" > ./config/3-node_cEOS-1
 echo "hostname cEOS-2" > ./config/3-node_cEOS-2
 echo "hostname cEOS-3" > ./config/3-node_cEOS-3
-docker-topo --create topo-extra-files/examples/3-node.yml
+docker-topo --create topo-extra-files/examples/v1-legacy/3-node.yml
 ```
 
 # List and connect to devices
@@ -199,7 +199,15 @@ cEOS-1>
 docker-topo --destroy topo-extra-files/examples/3-node.yml
 ```
 
+# Troubleshooting
 
+* If you get the following error, try renaming the topology filename to a string [shorter than 15 characters](https://github.com/svinota/pyroute2/issues/452)
+
+  ```
+  pyroute2.netlink.exceptions.NetlinkError: (34, 'Numerical result out of range')
+  ```
+
+* CVP can't connect to cEOS devices - make sure that CVP is attached with at least two interfaces. The first one is always for external access and the second one if always for device management
 
 [1]: https://networkop.co.uk/post/2018-03-03-docker-multinet/
 [alpine-host]: https://github.com/networkop/arista-ceos-topo/tree/master/topo-extra-files/host
