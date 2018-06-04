@@ -1,8 +1,0 @@
-VERSION: 2
-CEOS_IMAGE: ceosimage:latest
-PUBLISH_BASE: 9000
-driver: veth
-links:
-        - endpoints:
-            - "Device-A:eth1" 
-            - "Device-B:eth1"
