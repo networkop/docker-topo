@@ -12,6 +12,7 @@ setup(
     version='2.0',
     scripts=['bin/docker-topo'],
     data_files=collect_files(),
+    python_requires='>=3.5',
     install_requires=[
         'pyyaml',
         'docker',
