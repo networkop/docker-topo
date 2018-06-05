@@ -524,6 +524,10 @@ def main():
     VERSION = int(t_yml.get('VERSION',os.getenv('VERSION', VERSION)))
     PREFIX = t_yml.get('PREFIX',os.getenv('PREFIX', PREFIX))
 
+    if VERSION == 2 and os.geteuid() != 0:
+        LOG.info("Version 2 requires sudo. Restarting script with sudo")
+        os.execvp("sudo", ["sudo"] + sys.argv)
+
     # Versioned parsing logic
     if VERSION == 1:
         devices, links = parse_v1(t_yml)
