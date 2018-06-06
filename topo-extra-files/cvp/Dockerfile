@@ -7,7 +7,7 @@ RUN yum -y install epel-release && \
 # Install all the dependencies
 ## RUN yum update -y \
 RUN yum install -y qemu-kvm bridge-utils iproute libvirt libvirt-client \
-    && yum install -y python-pip openssh genisoimage net-tools \
+    && yum install -y python-pip openssh genisoimage net-tools ethtool \
     && pip install pyaml \
     && yum clean all
 

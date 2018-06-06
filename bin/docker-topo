@@ -389,9 +389,10 @@ class CVP(Device):
         self.entry_cmd = 'docker exec -it {} bash'.format(self.name)
 
     def start(self, *args, **kwargs):
-        super().start(*args, **kwargs)
+        rc = super().start(*args, **kwargs)
         LOG.debug("Setting CVP max memory utilisation")
         self.container.update(mem_limit=CVP_MEM_MAX, memswap_limit=CVP_MEMSWAP_MAX)
+        return rc
 
     def _get_ip_mask(self):
         prefix = netaddr.IPNetwork(self.prefix)
@@ -557,6 +558,7 @@ def main():
     # Main logic
     if create:
         started = [device.start() == 0 for (name, device) in devices.items()]
+        
         LOG.info(''.join(["\nalias {}='{}'".format(name, device.entry_cmd) for (name, device) in devices.items()]))
 
         if all(started):
