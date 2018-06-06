@@ -18,6 +18,8 @@ DOCKER = docker.from_env()
 netns.NETNS_RUN_DIR = "/var/run/docker/netns"
 SUPPORTED_DRIVERS = ['macvlan', 'bridge', 'veth']
 DEVNULL = open(os.devnull, 'w')
+CVP_MEM_MAX = "6g" # 6GB in bytes
+CVP_MEMSWAP_MAX = "7g"
 
 # Global variables
 VERSION = 1
@@ -385,6 +387,11 @@ class CVP(Device):
         self.prefix = OOB_PREFIX
         self.command = self._get_ip_mask()
         self.entry_cmd = 'docker exec -it {} bash'.format(self.name)
+
+    def start(self, *args, **kwargs):
+        super().start(*args, **kwargs)
+        LOG.debug("Setting CVP max memory utilisation")
+        self.container.update(mem_limit=CVP_MEM_MAX, memswap_limit=CVP_MEMSWAP_MAX)
 
     def _get_ip_mask(self):
         prefix = netaddr.IPNetwork(self.prefix)
