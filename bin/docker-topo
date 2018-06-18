@@ -248,7 +248,8 @@ class Device(object):
                 hostname=self.name,
                 ports=self.ports,
                 sysctls=self.sysctls,
-                labels={PREFIX: self.name}
+                labels={PREFIX: self.name},
+                tty=True
             )
 
     def get(self):
