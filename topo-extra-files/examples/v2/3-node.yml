@@ -1,0 +1,13 @@
+links:
+  - endpoints: ["cEOS-1:eth0", "cEOS-2:eth0", "cEOS-3:eth0"]
+    driver: bridge
+  - endpoints: ["cEOS-1:eth1", "cEOS-2:eth2"]
+  - endpoints: ["cEOS-1:eth2", "cEOS-3:eth1"]
+  - endpoints: ["cEOS-2:eth1", "cEOS-3:eth2"]
+
+VERSION: 2
+driver: veth
+PREFIX: 3-node
+CONF_DIR: ./config
+CEOS_IMAGE: ceosimage:latest
+PUBLISH_BASE: 9000

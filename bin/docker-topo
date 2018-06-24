@@ -18,7 +18,7 @@ DOCKER = docker.from_env()
 netns.NETNS_RUN_DIR = "/var/run/docker/netns"
 SUPPORTED_DRIVERS = ['macvlan', 'bridge', 'veth']
 DEVNULL = open(os.devnull, 'w')
-CVP_MEM_MAX = "6g" # 6GB in bytes
+CVP_MEM_MAX = "7g" # 6GB in bytes
 CVP_MEMSWAP_MAX = "7g"
 
 # Global variables
