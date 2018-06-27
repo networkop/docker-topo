@@ -312,8 +312,9 @@ class Device(object):
         self.container.kill()
         return 0
 
-    def publish_port(self, *args, **kwargs):
-        raise NotImplementedError("Can't publish ports for {}".format(self.__class__))
+    def publish_port(self, inside, outside):
+        LOG.debug("Publishing {}'s port {} to {}".format(self.name, inside, outside))
+        self.ports[inside] = outside
 
 class CEOS(Device):
     def __init__(self, *args, **kwargs):
@@ -345,10 +346,6 @@ class CEOS(Device):
                     }
         else:
             return {}
-
-    def publish_port(self, inside, outside, proto='tcp'):
-        LOG.debug("Publishing {}'s port {} to {}".format(self.name, inside, outside))
-        self.ports['{}/{}'.format(inside, proto)] = outside
 
 
 class Host(Device):
@@ -400,6 +397,10 @@ class CVP(Device):
         prefix = netaddr.IPNetwork(self.prefix)
         # Giving CVP the last IP from the OOB subnet
         return [str(prefix[-2]), str(prefix.netmask)]
+
+    def publish_port(self, *args, **kwargs):
+        raise NotImplementedError("Can't publish ports for {}".format(self.__class__))
+
 
 class Veth(object):
     def __init__(self, name):
@@ -529,8 +530,7 @@ def main():
     # Then check if it's an env variable, last accept default
     CEOS_IMAGE = t_yml.get('CEOS_IMAGE', os.getenv('CEOS_IMAGE', CEOS_IMAGE))
     CONF_DIR = t_yml.get('CONF_DIR',os.getenv('CONF_DIR', CONF_DIR))
-    PUBLISH_BASE = int(t_yml.get('PUBLISH_BASE', os.getenv('PUBLISH_BASE', PUBLISH_BASE)))
-    PUBLISH_SSH = int(t_yml.get('PUBLISH_SSH', os.getenv('PUBLISH_SSH', PUBLISH_SSH)))
+    PUBLISH_BASE = t_yml.get('PUBLISH_BASE', os.getenv('PUBLISH_BASE', PUBLISH_BASE))
     OOB_PREFIX = t_yml.get('OOB_PREFIX',os.getenv('OOB_PREFIX', OOB_PREFIX))
     VERSION = int(t_yml.get('VERSION',os.getenv('VERSION', VERSION)))
     PREFIX = t_yml.get('PREFIX',os.getenv('PREFIX', PREFIX))
@@ -548,22 +548,45 @@ def main():
         LOG.error("Specified version {} is not supported".format(VERSION))
         return 1
     
-
-    # Publishing ports.
-    if PUBLISH_BASE:
+    LOG.debug("PUBLISH_BASE is {} of type {}".format(PUBLISH_BASE, type(PUBLISH_BASE)))
+    # Publishing ports. If type is int assuming default behaviour which is
+    # Single mapping of inside 443 toip outside PUBLISH_BASE+index
+    if PUBLISH_BASE and (type(PUBLISH_BASE) == int):
+        LOG.debug("Publish internal port 443 -> base {}".format(PUBLISH_BASE))
+        base = int(PUBLISH_BASE)
         # Sort all device names alphabetically
         for idx,name in enumerate(sorted(devices.keys())):
             # Publish internal HTTPS port to external base
             # port offset by device's index (only for CEOS devices)
-            if devices[name].type == 'ceos':
-                devices[name].publish_port('443',PUBLISH_BASE+idx)
-    if PUBLISH_SSH:
-        # Sort all device names alphabetically
-        for idx,name in enumerate(sorted(devices.keys())):
-            # Publish internal SSH port to external base
-            # port offset by device's index (only for CEOS devices)
-            if devices[name].type == 'ceos':
-                devices[name].publish_port('22',PUBLISH_SSH+idx)
+            if devices[name].type == 'ceos' or devices[name].type == 'host':
+                devices[name].publish_port('443/tcp',base+idx)
+    # The second case is when PUBLISH_BASE is a list, in which case
+    # Each element is a mapping: EXTERNAL:INTERNAL, where
+    # INTERNAL is 'PORT/PROTO', e.g. '443/tcp' and
+    # EXTERNAL is either an INTEGER, e.g. 8000 or None (random port)
+    # Or a list with two elements [EXTERNAL_IP, EXTERNAL_PORT]
+    # similar to http://docker-py.readthedocs.io/en/stable/containers.html
+    # Example: PUBLISH_BASE: [443/tcp:[127.0.0.1,4343]]
+    # Example: PUBLISH_BASE: [443/tcp:8000]
+    # Example: PUBLISH_BASE: [443/tcp:None]
+    elif type(PUBLISH_BASE) == list:
+        for ports in PUBLISH_BASE:
+            internal,e   = ports.split(":")
+            base         = yaml.load(e)
+            LOG.debug("Publish internal port {} -> {}".format(internal, base))
+            # Sort all device names alphabetically
+            for idx,name in enumerate(sorted(devices.keys())):
+                # If it's a list, increment the second element
+                if type(base) == list:
+                    external = (base[0], base[1]+idx)
+                # If it's an int, simply increment
+                elif type(base) == int:
+                    external = base + idx
+                # Else it must be None
+                else:
+                    external = None
+                if devices[name].type == 'ceos' or devices[name].type == 'host':
+                    devices[name].publish_port(internal,external)
         
     # Main logic
     if create:
