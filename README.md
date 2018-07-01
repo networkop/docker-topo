@@ -143,6 +143,18 @@ links:
 
 There should be several examples in the `./topo-extra-files/examples` directory
 
+## (Optional) Exposing arbitrary ports
+
+By default, `PUBLISH_BASE` will expose internal HTTPS (443/tcp) port of a container. It is possible to expose any number of internal ports for each container by defining `PUBLISH_BASE` in the following way:
+
+```yaml
+PUBLISH_BASE:
+  443/tcp: None # Will expose inside 443 to a random outside port
+  22/tcp: 2000 # All containers will get their ports exposed starting from outside port 2000
+  161/tcp: [127.0.0.1, 1600] # Similar to the above but only exposes ports on the defined local IP address
+```
+
+**Note:** topology file must have at least one interface of type **bridge** in order for PUBLISH_BASE to work.
 
 # Example 1 - Creating a 2-node topology interconnected directly with veth links (without config)
 

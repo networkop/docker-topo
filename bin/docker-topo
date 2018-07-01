@@ -26,7 +26,6 @@ VERSION = 1
 CEOS_IMAGE = 'ceos:latest'
 CONF_DIR = './config'
 PUBLISH_BASE = 8000
-PUBLISH_SSH = False
 OOB_PREFIX = '192.168.100.0/24'
 PREFIX = 'CEOS-LAB'
 
@@ -325,7 +324,7 @@ class CEOS(Device):
         self.command = "/sbin/init"
         self.environment = {
                                "CEOS": 1,
-                               "EOS_PLATFORM": "ceossim",
+                               "EOS_PLATFORM": "ceoslab",
                                "container": "docker",
                                "ETBA": 1,
                                "SKIP_ZEROTOUCH_BARRIER_IN_SYSDBINIT": 1,
@@ -549,8 +548,8 @@ def main():
         return 1
     
     LOG.debug("PUBLISH_BASE is {} of type {}".format(PUBLISH_BASE, type(PUBLISH_BASE)))
-    # Publishing ports. If type is int assuming default behaviour which is
-    # Single mapping of inside 443 toip outside PUBLISH_BASE+index
+    # Publishing ports. If type is INT assuming default behaviour which is
+    # Single mapping of inside 443 to outside PUBLISH_BASE+index
     if PUBLISH_BASE and (type(PUBLISH_BASE) == int):
         LOG.debug("Publish internal port 443 -> base {}".format(PUBLISH_BASE))
         base = int(PUBLISH_BASE)
@@ -560,33 +559,31 @@ def main():
             # port offset by device's index (only for CEOS devices)
             if devices[name].type == 'ceos' or devices[name].type == 'host':
                 devices[name].publish_port('443/tcp',base+idx)
-    # The second case is when PUBLISH_BASE is a list, in which case
-    # Each element is a mapping: EXTERNAL:INTERNAL, where
+    # The second case is when PUBLISH_BASE is a dict, in which case
+    # Each element is a mapping: INTERNAL:EXTERNAL, where
     # INTERNAL is 'PORT/PROTO', e.g. '443/tcp' and
     # EXTERNAL is either an INTEGER, e.g. 8000 or None (random port)
     # Or a list with two elements [EXTERNAL_IP, EXTERNAL_PORT]
     # similar to http://docker-py.readthedocs.io/en/stable/containers.html
-    # Example: PUBLISH_BASE: [443/tcp:[127.0.0.1,4343]]
-    # Example: PUBLISH_BASE: [443/tcp:8000]
-    # Example: PUBLISH_BASE: [443/tcp:None]
-    elif type(PUBLISH_BASE) == list:
-        for ports in PUBLISH_BASE:
-            internal,e   = ports.split(":")
-            base         = yaml.load(e)
-            LOG.debug("Publish internal port {} -> {}".format(internal, base))
+    # Example: PUBLISH_BASE: {443/tcp:[127.0.0.1,4343]}
+    # Example: PUBLISH_BASE: {443/tcp:8000}
+    # Example: PUBLISH_BASE: {443/tcp:None}
+    elif type(PUBLISH_BASE) == dict:
+        for inside,outside in PUBLISH_BASE.items():
+            LOG.debug("Publish internal port {} -> {} (type {})".format(inside, outside, type(outside)))
             # Sort all device names alphabetically
             for idx,name in enumerate(sorted(devices.keys())):
                 # If it's a list, increment the second element
-                if type(base) == list:
-                    external = (base[0], base[1]+idx)
+                if type(outside) == list:
+                    external = (outside[0], outside[1]+idx)
                 # If it's an int, simply increment
-                elif type(base) == int:
-                    external = base + idx
+                elif type(outside) == int:
+                    external = outside + idx
                 # Else it must be None
                 else:
                     external = None
                 if devices[name].type == 'ceos' or devices[name].type == 'host':
-                    devices[name].publish_port(internal,external)
+                    devices[name].publish_port(inside,external)
         
     # Main logic
     if create:

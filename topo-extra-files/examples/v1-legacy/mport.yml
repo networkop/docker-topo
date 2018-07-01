@@ -1,0 +1,9 @@
+links:
+  - ["host-1:eth0", "host-2:eth0"]
+  - ["host-1:eth1", "host-2:eth1"]
+
+PUBLISH_BASE:
+  443/tcp: None # Will expose inside 443 to a random outside port
+  22/tcp: 2000 # All containers will get their ports exposed starting from outside port 2000
+  161/tcp: [127.0.0.1, 1600] # Similar to the above but only exposes ports on the defined local IP address
+
