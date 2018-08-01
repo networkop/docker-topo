@@ -46,7 +46,7 @@ links:
 
 VERSION: 2
 driver: veth
-PREFIX: customer01-14routers
+PREFIX: 14rtr
 CONF_DIR: ./config
 CEOS_IMAGE: ceosimage:latest
 PUBLISH_BASE: 9000
