@@ -10,7 +10,7 @@ links:
 
 VERSION: 2
 driver: veth
-PREFIX: 5-node-ls
+PREFIX: 5-node
 CONF_DIR: ./config
 CEOS_IMAGE: ceosimage:latest
 PUBLISH_BASE: 9000
