@@ -1,0 +1,25 @@
+﻿! Command: show running-config
+! device: rtr11 (cEOSSim, EOS-4.20.5F)
+!
+transceiver qsfp default-mode 4x10G
+!
+hostname rtr11
+!
+spanning-tree mode mstp
+!
+no aaa root
+!
+interface Ethernet1
+   no switchport
+   ip address 10.0.111.11/24
+!
+interface Ethernet2
+   no switchport
+   ip address 192.168.3.11/24
+!
+interface Loopback0
+   ip address 11.11.11.11/32
+!
+no ip routing
+!
+end
