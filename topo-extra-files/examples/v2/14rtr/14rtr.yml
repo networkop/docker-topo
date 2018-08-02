@@ -41,8 +41,10 @@ links:
   - endpoints: ["rtr11:eth2", "rtr14:eth1"]
   - endpoints: ["rtr12:eth1", "rtr07:eth3"]
   - endpoints: ["rtr12:eth2", "rtr14:eth2"]
-  - endpoints: ["rtr13:eth1", "rtr07:eth3"]
-  - endpoints: ["rtr13:eth2", "rtr14:eth2"]
+  - endpoints: ["rtr13:eth1", "rtr09:eth2"]
+  - endpoints: ["rtr13:eth2", "rtr10:eth2"]
+  - endpoints: ["rtr14:eth1", "rtr11:eth2"]
+  - endpoints: ["rtr14:eth2", "rtr12:eth2"]
 
 VERSION: 2
 driver: veth
