@@ -89,7 +89,7 @@ for arg in \$args; do
   eval int=\`echo \$arg |cut -d':' -f1\`
   cmd1="sudo ip addr flush dev \$int"
   cmd2="sudo ip addr add \$ip dev \$int"
-  cmd2="sudo ip route add default dev \$int"
+  cmd3="sudo ip route add default dev \$int"
   echo \$cmd1
   echo \$cmd2
   echo \$cmd3
