@@ -1,0 +1,16 @@
+links:
+  - endpoints: ["Spine-1:eth0", "Spine-2:eth0", "Leaf-1:eth0", "Leaf-2:eth0", "Leaf-3:eth0"]
+    driver: bridge
+  - endpoints: ["Spine-1:eth1", "Leaf-1:eth1"]
+  - endpoints: ["Spine-1:eth2", "Leaf-2:eth1"]
+  - endpoints: ["Spine-1:eth3", "Leaf-3:eth1"]
+  - endpoints: ["Spine-2:eth1", "Leaf-1:eth2"]
+  - endpoints: ["Spine-2:eth2", "Leaf-2:eth2"]
+  - endpoints: ["Spine-2:eth3", "Leaf-3:eth2"]
+
+VERSION: 2
+driver: veth
+PREFIX: 5-node
+CONF_DIR: ./config
+CEOS_IMAGE: ceosimage:latest
+PUBLISH_BASE: 9000
