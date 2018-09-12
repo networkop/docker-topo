@@ -31,20 +31,25 @@ PREFIX = 'CEOS-LAB'
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Tool to create cEOS topologies")
-    group = parser.add_mutually_exclusive_group()
+    main_group = parser.add_mutually_exclusive_group()
     parser.add_argument(
         '-d', '--debug',
         help='Enable Debug',
         action='store_true'
     )
-    group.add_argument(
+    main_group.add_argument(
         "--create",
         help="Create topology",
         action="store_true"
     )
-    group.add_argument(
+    main_group.add_argument(
         "--destroy",
         help="Destroy topology",
+        action="store_true"
+    )
+    main_group.add_argument(
+        "--save",
+        help="Save topology configs",
         action="store_true"
     )
     parser.add_argument(
@@ -65,6 +70,14 @@ def run_cmd(command, sudo=False):
     LOG.debug("Running command: {}".format(cmd))
     output = None if LOG.getEffectiveLevel() == logging.DEBUG else DEVNULL
     return subprocess.call(cmd, shell=True, stdout=output, stderr=output)
+
+def write_file(filename, text):
+    if os.path.exists(filename):
+        LOG.debug("Filename {} exists, overwriting".format(filename))
+    else:
+        LOG.debug("Creating new file {}".format(filename))
+    with open(filename, 'w') as f:
+        f.write(text)
 
 def enable_lldp(networks):
     for each in networks:
@@ -314,6 +327,9 @@ class Device(object):
     def publish_port(self, inside, outside):
         LOG.debug("Publishing {}'s port {} to {}".format(self.name, inside, outside))
         self.ports[inside] = outside
+    
+    def write_mem(self, filename):
+        raise NotImplementedError("Save is only implemented for cEOS device type")
 
 class CEOS(Device):
     def __init__(self, *args, **kwargs):
@@ -346,6 +362,18 @@ class CEOS(Device):
         else:
             return {}
 
+    def write_mem(self, filename):
+        LOG.debug("Saving container config into {}".format(filename))
+        if not self.container:
+            self._get_or_create()
+        
+        if self.container.status not in ['running', 'paused']:
+            LOG.info('Container {} is not running'.format(self.name))
+            return 1
+        else:
+            _, output = self.container.exec_run("Cli -p 15 -c \"show running\"", tty=True)
+            write_file(filename, output.decode("utf-8"))
+            return 0
 
 class Host(Device):
     def __init__(self, *args, **kwargs):
@@ -502,6 +530,7 @@ def main():
     args    = parse_args()
     debug   = args.debug
     create  = args.create
+    save    = args.save
     t_file  = os.path.join(os.getcwd(), args.topology)
     t_fn    = os.path.split(args.topology)[-1]
     destroy = args.destroy
@@ -600,7 +629,7 @@ def main():
         else:
             LOG.info('Devices have not been started')
             return 1
-    if destroy:
+    elif destroy:
         killed = [device.kill() == 0 for (name, device) in devices.items()]
         # Regardless of whether we killed or not, try to prune unused objects
         DOCKER.networks.prune(
@@ -618,6 +647,25 @@ def main():
         else:
             LOG.info('Devices have not been destroyed')
             return 1
+    elif save:
+        # Hard-coding to CONF_DIR. Will need to provide a flexible option later
+        dirname = CONF_DIR
+        if os.path.exists(dirname):
+            ok = input('Config directory exists, continue? [y/n]:')
+        else:
+            os.mkdir(dirname)
+            ok = 'y'
+        if ok == 'y':
+            saved = [device.write_mem(os.path.join(dirname, device.name)) == 0 for (name, device) in devices.items() if device.type == 'ceos']
+            if all(saved):
+                LOG.info("All configs saved")
+                return 0
+            else:
+                LOG.info("Some configs have not been saved")
+                return 1
+        else:
+            LOG.info("Save interrupted")
+            return 0
         
 
 
