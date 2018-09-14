@@ -32,18 +32,28 @@ python3 -m pip install git+https://github.com/networkop/arista-ceos-topo.git
 
 ```bash
 # docker-topo -h
-usage: docker-topo [-h] [-d] [--create | --destroy] topology
+usage: docker-topo [-h] [-d] [--create | --destroy] [-s] [-a] topology
 
 Tool to create cEOS topologies
 
 positional arguments:
-  topology     Topology file
+  topology       Topology file
 
 optional arguments:
-  -h, --help   show this help message and exit
-  -d, --debug  Enable Debug
-  --create     Create topology
-  --destroy    Destroy topology
+  -h, --help     show this help message and exit
+  -d, --debug    Enable Debug
+
+Actions:
+  Create or destroy topology
+
+  --create       Create topology
+  --destroy      Destroy topology
+
+Save:
+  Save or archive the topology
+
+  -s, --save     Save topology configs
+  -a, --archive  Archive topology file and configs
 ```
 
 # Topology file
@@ -155,6 +165,32 @@ PUBLISH_BASE:
 ```
 
 **Note:** topology file must have at least one interface of type **bridge** in order for PUBLISH_BASE to work.
+
+## (Optional) Saving and archiving network topologies
+
+By default, `docker-topo` will pick up any files located in the `CONF_DIR` and, if the filename matches the `PREFIX_DEVICENAME`, will mount it inside the container as `/mnt/flash/startup-config`.
+
+When the topology is running, there's a way to easily save the output of "show run" from each device inside the `CONF_DIR` to make them available on next reboot:
+
+```
+$ docker-topo -s topology.yml
+Config directory exists, existing files may be overwritten. Continue? [y/n]:y
+INFO:__main__:All configs saved in ./config
+```
+
+Archive option creates a `tar.gz` file with the `CONF_DIR` directory and the topology YAML file
+
+```
+$ docker-topo -a topology.yml
+INFO:__main__:Archive file topo.tar.gz created
+$ tar -tvf topo.tar.gz 
+drwxr-xr-x root/root         0 2018-09-14 11:53 config/
+-rw-r--r-- null/null       660 2018-09-11 15:08 topology.yml
+
+```
+
+
+
 
 # Example 1 - Creating a 2-node topology interconnected directly with veth links (without config)
 
