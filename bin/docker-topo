@@ -614,7 +614,7 @@ def main():
         for idx,name in enumerate(sorted(devices.keys())):
             # Publish internal HTTPS port to external base
             # port offset by device's index (only for CEOS devices)
-            if devices[name].type == 'ceos' or devices[name].type == 'host':
+            if devices[name].type == 'ceos':
                 devices[name].publish_port('443/tcp',base+idx)
     # The second case is when PUBLISH_BASE is a dict, in which case
     # Each element is a mapping: INTERNAL:EXTERNAL, where
@@ -639,7 +639,7 @@ def main():
                 # Else it must be None
                 else:
                     external = None
-                if devices[name].type == 'ceos' or devices[name].type == 'host':
+                if devices[name].type == 'ceos':
                     devices[name].publish_port(inside,external)
         
     # Main logic
