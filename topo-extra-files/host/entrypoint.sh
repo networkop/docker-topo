@@ -86,10 +86,11 @@ cat << EOT >> /set_ips.sh
 args="$@"
 for arg in \$args; do
   eval ip=\`echo \$arg | cut -d':' -f2\`
-  eval int=\`echo \$arg |cut -d':' -f1\`
+  eval int=\`echo \$arg | cut -d':' -f1\`
+  eval gw=\`echo \$ip | cut -d'.' -f1-3\`
   cmd1="sudo ip addr flush dev \$int"
   cmd2="sudo ip addr add \$ip dev \$int"
-  cmd3="sudo ip route add default dev \$int"
+  cmd3="sudo ip route add default via \$gw.1"
   echo \$cmd1
   echo \$cmd2
   echo \$cmd3

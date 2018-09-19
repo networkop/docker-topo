@@ -17,3 +17,5 @@ RUN chmod +x /home/alpine/entrypoint.sh
 USER alpine 
 
 ENTRYPOINT ["/home/alpine/entrypoint.sh"]
+
+CMD ["eth0:192.168.100.100/24"]
