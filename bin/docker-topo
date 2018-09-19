@@ -605,17 +605,17 @@ def main():
         return 1
     
     LOG.debug("PUBLISH_BASE is {} of type {}".format(PUBLISH_BASE, type(PUBLISH_BASE)))
+    # We're only publishing ceos ports, not host or cvp
+    ceos_only = [k for k in devices.keys() if devices[k].type == 'ceos']
     # Publishing ports. If type is INT assuming default behaviour which is
     # Single mapping of inside 443 to outside PUBLISH_BASE+index
     if PUBLISH_BASE and (type(PUBLISH_BASE) == int):
         LOG.debug("Publish internal port 443 -> base {}".format(PUBLISH_BASE))
         base = int(PUBLISH_BASE)
         # Sort all device names alphabetically
-        for idx,name in enumerate(sorted(devices.keys())):
+        for idx,name in enumerate(sorted(ceos_only)):
             # Publish internal HTTPS port to external base
-            # port offset by device's index (only for CEOS devices)
-            if devices[name].type == 'ceos':
-                devices[name].publish_port('443/tcp',base+idx)
+            devices[name].publish_port('443/tcp',base+idx)
     # The second case is when PUBLISH_BASE is a dict, in which case
     # Each element is a mapping: INTERNAL:EXTERNAL, where
     # INTERNAL is 'PORT/PROTO', e.g. '443/tcp' and
@@ -629,7 +629,7 @@ def main():
         for inside,outside in PUBLISH_BASE.items():
             LOG.debug("Publish internal port {} -> {} (type {})".format(inside, outside, type(outside)))
             # Sort all device names alphabetically
-            for idx,name in enumerate(sorted(devices.keys())):
+            for idx,name in enumerate(sorted(ceos_only)):
                 # If it's a list, increment the second element
                 if type(outside) == list:
                     external = (outside[0], outside[1]+idx)
@@ -639,8 +639,7 @@ def main():
                 # Else it must be None
                 else:
                     external = None
-                if devices[name].type == 'ceos':
-                    devices[name].publish_port(inside,external)
+                devices[name].publish_port(inside,external)
         
     # Main logic
     if create:
