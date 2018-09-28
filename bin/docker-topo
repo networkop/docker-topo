@@ -109,6 +109,8 @@ def enable_lldp(networks):
             continue
     return
 
+def enable_ipForwarding(devices):
+    [d.container.exec_run("sysctl -w net.ipv4.ip_forward=1") for _,d in devices.items()]
 
 def kill_agetty():
     cmd = 'pkill agetty'
@@ -593,7 +595,7 @@ def main():
 
     if VERSION == 2 and os.geteuid() != 0:
         LOG.info("Version 2 requires sudo. Restarting script with sudo")
-        os.execvp("sudo", ["sudo -E"] + sys.argv)
+        os.execvp("sudo", ["sudo"] + sys.argv)
 
     # Versioned parsing logic
     if VERSION == 1:
@@ -649,7 +651,10 @@ def main():
 
         if all(started):
             LOG.info('All devices started successfully')
+            LOG.debug('Enabling LLDP forwarding on Docker bridges')
             enable_lldp(links)
+            LOG.debug('Enabling IP forwarding inside all containers')
+            enable_ipForwarding(devices)
         else:
             LOG.info('Devices have not been started')
             return 1
