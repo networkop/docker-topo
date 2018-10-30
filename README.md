@@ -5,8 +5,6 @@ Docker network topology builder
 
 # TODO
 
-* Write more tests
-* Multi-host topologies with VXLAN links - not sure if veth + linux bridges are needed or if its possible to get away with macvlan (bridge mode) over a vxlan interface???
 * Add a configurable subnet option for docker bridge networks
 
 # Installation
