@@ -4,6 +4,7 @@ import logging
 import yaml
 import os
 import sys
+import time
 import docker
 import os.path
 import netaddr
@@ -21,6 +22,7 @@ SUPPORTED_DRIVERS = ['macvlan', 'bridge', 'veth']
 DEVNULL = open(os.devnull, 'w')
 CVP_MEM_MAX = "7g" # 6GB in bytes
 CVP_MEMSWAP_MAX = "7g"
+DELAY_BASE = 5
 
 # Global variables
 VERSION = 1
@@ -294,7 +296,7 @@ class Device(object):
         except docker.errors.NotFound:
             return None
 
-    def start(self):
+    def start(self, delay=0):
         LOG.debug('\tStarting container {}'.format(self.name))
 
         if not self.container:
@@ -314,6 +316,9 @@ class Device(object):
             LOG.debug('\tSandbox key for container {} is {}'.format(self.name, self.pid))
             self.container.pause()
             self._attach()
+
+            LOG.debug('\tSleeping for {} before starting'.format(delay))
+            time.sleep(delay)
             self.container.unpause()
         else:
             LOG.info('Unsupported container start mode {}'.format(self.start_mode))
@@ -553,7 +558,7 @@ class Link(object):
 
 def main():
     # Initializing main variables
-    global PREFIX, CEOS_IMAGE, CONF_DIR, PUBLISH_BASE, OOB_PREFIX, VERSION, PUBLISH_SSH
+    global PREFIX, CEOS_IMAGE, CONF_DIR, PUBLISH_BASE, OOB_PREFIX, VERSION, PUBLISH_SSH, DELAY_BASE
     
     # Assigning arguments
     args    = parse_args()
@@ -592,6 +597,7 @@ def main():
     OOB_PREFIX = t_yml.get('OOB_PREFIX',os.getenv('OOB_PREFIX', OOB_PREFIX))
     VERSION = int(t_yml.get('VERSION',os.getenv('VERSION', VERSION)))
     PREFIX = t_yml.get('PREFIX',os.getenv('PREFIX', PREFIX))
+    DELAY_BASE = t_yml.get('DELAY_BASE',os.getenv('DELAY_BASE', DELAY_BASE))
 
     if VERSION == 2 and os.geteuid() != 0:
         LOG.info("Version 2 requires sudo. Restarting script with sudo")
@@ -645,7 +651,10 @@ def main():
         
     # Main logic
     if create:
-        started = [device.start() == 0 for (name, device) in devices.items()]
+        device_names = [name for (name,_) in devices.items()]
+        if DELAY_BASE > 0:
+            LOG.info('Container start is delayed. The script will run for at least {} seconds'.format(sum(x*DELAY_BASE for x in range(len(device_names)))))
+        started = [device.start(delay=device_names.index(name) * DELAY_BASE) == 0 for (name, device) in devices.items()]
         
         LOG.info(''.join(["\nalias {}='{}'".format(name, device.entry_cmd) for (name, device) in devices.items()]))
 
