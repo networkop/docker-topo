@@ -3,7 +3,7 @@
 # Number of interfaces (optional argument)
 INT_NUM=$1
 
-# Default is 1 (only Management1 will be visible)
+# Default is 1 (Management1)
 if [ -z "$INT_NUM" ]; then
   INT_NUM='1'
 fi
@@ -38,17 +38,30 @@ while [ $SECONDS -lt $TIMEOUT ]; do
     fi
 done
 
+##########################
+# Create a startup CDROM #
+##########################
+
+if [ ! -f /mnt/flash/startup-config ]; then
+  mkdir -p /mnt/flash
+  echo "hostname DEFAULT" > /mnt/flash/startup-config
+fi
+
+genisoimage -J -r -o /var/lib/libvirt/images/cdrom.iso /mnt/flash/startup-config /mnt/flash/rc.eos
+
+
 ################# 
 # Creating a VM #
 #################
 VIRT_MAIN="virt-install \
   --connect qemu:///system \
+  --autostart \
   -n veos \
   -r 1536 \
   --vcpus 1 \
   --os-type=linux \
   --disk path=/var/lib/libvirt/images/veos.qcow2,bus=ide \
-  --cdrom /var/lib/libvirt/images/aboot.iso \
+  --disk path=/var/lib/libvirt/images/cdrom.iso,device=cdrom \
   --graphics none \
   --console pty,target_type=serial"
 
