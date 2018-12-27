@@ -90,6 +90,7 @@ Each link endpoint is encoded as "DeviceName:InterfaceName:IPPrefix" with the fo
 * **DeviceName** determines which docker image is going to be used by (case-insensitive) matching of the following strings:
   * **host** - [alpine-host][alpine-host] image is going to be used
   * **cvp** - [cvp](https://github.com/networkop/arista-ceos-topo/tree/master/topo-extra-files/cvp) image is going to be used
+  * **veos** - Arista vEOS image built according to the procedure described [here](https://github.com/networkop/docker-topo/blob/master/topo-extra-files/veos/README.md)
   * For anything else Arista cEOS image will be used 
 * **InterfaceName** must match the exact name of the interface you expect to see inside a container. For example if you expect to connect a link to DeviceA interface eth0, endpoint definition should be "DeviceA:eth0"
 * **IPPrefix** - Optional parameter that works **ONLY** for [alpine-host][alpine-host] devices and will attempt to configure a provided IP prefix inside a container.

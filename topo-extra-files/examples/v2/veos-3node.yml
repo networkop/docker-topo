@@ -1,0 +1,11 @@
+VERSION: 2
+CONF_DIR: ./config
+PREFIX: veos
+driver: veth
+links:
+  - endpoints: ["vEOS-1:eth0", "vEOS-2:eth0", "vEOS-3:eth0"]
+    driver: bridge
+  - endpoints: ["vEOS-1:eth1", "vEOS-2:eth2"]
+  - endpoints: ["vEOS-1:eth2", "vEOS-3:eth1"]
+  - endpoints: ["vEOS-2:eth1", "vEOS-3:eth2"]
+

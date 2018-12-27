@@ -28,16 +28,6 @@ docker run -d --name veos --privileged veos
 
 Allow up to 5 minutes to boot
 
-## Control number of interfaces
-
-It's possible to connect arbitrary number of interfaces by providing a argument to entrypoint script, like this:
-
-```bash
-docker run -d --name veos --privileged veos 5
-```
-
-The above command will create a veos image with 5 interfaces. In order for this to work docker container needs to be attached to 5 networks (by default there's only 1)
-
 ## Logging in to vEOS
 
 ```bash
@@ -81,7 +71,7 @@ From now on, you can mount startup configuration file  into `/mnt/flash/startup-
 
 ```bash
 echo "hostname MYRANDOM-HOSTNAME" > my-config
-docker run -d --name veos -v $(pwd)/my-config:/mnt/flash/startup-config --privileged veos 1
+docker run -d --name veos -v $(pwd)/my-config:/mnt/flash/startup-config --privileged veos
 docker exec -it veos bash
 [root@de16326e92f2 /]# virsh console veos
 MYRANDOM-HOSTNAME login:      

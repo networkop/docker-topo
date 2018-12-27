@@ -18,4 +18,4 @@ USER alpine
 
 ENTRYPOINT ["/home/alpine/entrypoint.sh"]
 
-CMD ["eth0:192.168.100.100/24"]
+CMD []

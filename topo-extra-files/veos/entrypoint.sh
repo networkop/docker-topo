@@ -1,36 +1,71 @@
 #!/bin/bash
 
-# Number of interfaces (optional argument)
-INT_NUM=$1
+echo 'Sleeping to wait for all interfaces to be connected'
+sleep 5
 
-# Default is 1 (Management1)
-if [ -z "$INT_NUM" ]; then
-  INT_NUM='1'
-fi
+echo '############################'
+echo '# Stealing the IP off eth0 #'
+echo '############################'
 
-INT_NUM=$((INT_NUM-1))
+HOSTNAME=$(hostname)
+IPADDR=$(ip addr show eth0 | grep inet | awk 'NR==1 {print $2}')
+GW=$(ip route get 8.8.8.8 | awk 'NR==1 {print $3}')
+ip addr flush dev eth0
+ip addr
 
-####################
-# Creating bridges #
-####################
+echo '####################################'
+echo '# Saving eth0 IP in startup-config #'
+echo '####################################'
+
+rm -f /tmp/management-config
+
+cat << EOF > /tmp/management-config
+!
+interface Management1
+   ip address $IPADDR
+   no shutdown
+   exit
+!
+ip route 0.0.0.0/0 $GW
+!
+EOF
+
+
+cat /tmp/management-config >> /mnt/flash/startup-config
+cat /mnt/flash/startup-config
+
+INTFS=$(ls /sys/class/net/ | grep 'eth\|ens\|eno')
+
+echo '####################'
+echo '# Creating bridges #'
+echo '####################'
 BRIDGE=""
-# Create the right number of bridges
-for i in $(seq 0 $INT_NUM); do
-  BRIDGE=$BRIDGE"brctl addbr virbr$i \n"
-  BRIDGE=$BRIDGE"brctl addbr virbr$i eth$i \n"
-  BRIDGE=$BRIDGE"ip link set dev virbr$i up \n"
+ip link add name bridge_name type bridge
+for i in $INTFS; do
+  BRIDGE=$BRIDGE"ip link add name br-$i type bridge;"
+  BRIDGE=$BRIDGE"ip link set br-$i up;"
+  BRIDGE=$BRIDGE"ip link set $i master br-$i;"
+  BRIDGE=$BRIDGE"echo 16384 > /sys/class/net/br-$i/bridge/group_fwd_mask;"
+  
 done
 
-echo $BRIDGE
+echo -e $BRIDGE
 eval $BRIDGE
 
-#############################
-# Starting libvirt services #
-#############################
+echo '====='
+bridge link
+echo '====='
+brctl show
+echo '====='
+
+echo '#############################'
+echo '# Starting libvirt services #'
+echo '#############################'
+
 /usr/sbin/libvirtd &
 /usr/sbin/virtlogd &
 
-# Wait for 10 seconds for libvirt sockets to be created
+echo '# Wait for 10 seconds for libvirt sockets to be created'
 TIMEOUT=$((SECONDS+10))
 while [ $SECONDS -lt $TIMEOUT ]; do
     if [ -S /var/run/libvirt/libvirt-sock ]; then
@@ -38,26 +73,26 @@ while [ $SECONDS -lt $TIMEOUT ]; do
     fi
 done
 
-##########################
-# Create a startup CDROM #
-##########################
+echo '##########################'
+echo '# Create a startup CDROM #'
+echo '##########################'
 
+HOSTNAME=$(hostname)
 if [ ! -f /mnt/flash/startup-config ]; then
-  mkdir -p /mnt/flash
-  echo "hostname DEFAULT" > /mnt/flash/startup-config
+  echo "hostname $HOSTNAME" > /mnt/flash/startup-config
 fi
 
 genisoimage -J -r -o /var/lib/libvirt/images/cdrom.iso /mnt/flash/startup-config /mnt/flash/rc.eos
 
+echo '#################'
+echo '# Creating a VM #'
+echo '#################'
 
-################# 
-# Creating a VM #
-#################
 VIRT_MAIN="virt-install \
   --connect qemu:///system \
   --autostart \
   -n veos \
-  -r 1536 \
+  -r 2048 \
   --vcpus 1 \
   --os-type=linux \
   --disk path=/var/lib/libvirt/images/veos.qcow2,bus=ide \
@@ -66,11 +101,17 @@ VIRT_MAIN="virt-install \
   --console pty,target_type=serial"
 
 VIRT_NET=""
-for i in $(seq 0 $INT_NUM); do 
-  VIRT_NET=$VIRT_NET" --network bridge=virbr$i,model=e1000"
+for i in $INTFS; do 
+  VIRT_NET=$VIRT_NET" --network bridge=br-$i,model=e1000"
 done
 
 VIRT_FULL=$VIRT_MAIN$VIRT_NET
+
+if virsh dominfo veos; then 
+  echo 'VEOS VM already exists, destroying the old domain'
+  virsh destroy veos
+  virsh undefine veos
+fi
 
 echo $VIRT_FULL
 eval $VIRT_FULL

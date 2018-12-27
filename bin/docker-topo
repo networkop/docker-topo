@@ -132,10 +132,12 @@ def parse_endpoints(devices, endpoints, link, idx):
             LOG.error('Link contains empty definition')
         device_name = ep.pop(0)
         # Example: device_name == "host-3"
-        # We only support CVP, Host and CEOS device types
+        # We only support CVP, vEOS, Host and CEOS device types
         if 'cvp' in device_name.lower():
             # The below is dict.get(key, default) 
             device = devices.get(device_name, CVP(device_name))
+        elif 'veos' in device_name.lower():
+            device = devices.get(device_name, VEOS(device_name))
         elif 'host' in device_name.lower():
             # Example: ep == ["Eth2","192.168.10.30/24"]
             device = devices.get(device_name, Host(device_name))
@@ -458,6 +460,32 @@ class CVP(Device):
         raise NotImplementedError("Can't publish ports for {}".format(self.__class__))
 
 
+class VEOS(Device):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Overriding defaults
+        self.type = 'veos'
+        self.image = 'veos:latest'
+        self.entry_cmd = 'docker exec -it {} virsh console veos --force'.format(self.name)
+        # Overriding extra variables
+        self.volumes = self._get_config()
+
+    def _get_config(self):
+        
+        startup = os.path.join(CONF_DIR, self.name)
+        # Docker requires absolute path in volumes
+        startup = os.path.abspath(startup)
+        if os.path.isfile(startup):
+            return {startup: {
+                            'bind': "/mnt/flash/startup-config",
+                            'mode': 'rw'}
+                    }
+        else:
+            return {}
+
+    def publish_port(self, *args, **kwargs):
+        raise NotImplementedError("Can't publish ports for {}".format(self.__class__))
+
 class Veth(object):
     def __init__(self, name):
         self.name = name
@@ -563,6 +591,7 @@ def main():
     tar     = args.archive
     t_file  = os.path.join(os.getcwd(), args.topology)
     t_fn    = os.path.split(args.topology)[-1]
+    t_file_pwd = os.path.join(os.getcwd(), os.path.split(args.topology)[0])
     destroy = args.destroy
     PREFIX  = t_fn.split('.')[0]
 
@@ -597,6 +626,13 @@ def main():
         LOG.info("Version 2 requires sudo. Restarting script with sudo")
         os.execvp("sudo", ["sudo"] + sys.argv)
 
+    # Searching for CONF_DIR in the same dir as yaml file
+    
+    confdir_alt = os.path.join(t_file_pwd, CONF_DIR)
+    if os.path.isdir(confdir_alt):
+        CONF_DIR = confdir_alt
+    LOG.debug("New CONFDIR is {}".format(CONF_DIR))
+
     # Versioned parsing logic
     if VERSION == 1:
         devices, links = parse_v1(t_yml)
@@ -605,6 +641,8 @@ def main():
     else:
         LOG.error("Specified version {} is not supported".format(VERSION))
         return 1
+
+
     
     LOG.debug("PUBLISH_BASE is {} of type {}".format(PUBLISH_BASE, type(PUBLISH_BASE)))
     # We're only publishing ceos ports, not host or cvp

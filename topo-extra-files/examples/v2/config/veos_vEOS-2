@@ -1,0 +1,33 @@
+hostname vEOS-2
+!
+interface Management1
+   ip address 192.168.48.3/20
+   no shutdown
+   exit
+!
+ip route 0.0.0.0/0 192.168.48.1
+!
+!
+interface Management1
+   ip address 192.168.128.3/20
+   no shutdown
+   exit
+!
+ip route 0.0.0.0/0 192.168.128.1
+!
+!
+interface Management1
+   ip address 192.168.144.3/20
+   no shutdown
+   exit
+!
+ip route 0.0.0.0/0 192.168.144.1
+!
+!
+interface Management1
+   ip address 192.168.160.3/20
+   no shutdown
+   exit
+!
+ip route 0.0.0.0/0 192.168.160.1
+!
