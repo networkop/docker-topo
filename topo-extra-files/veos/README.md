@@ -77,3 +77,4 @@ docker exec -it veos bash
 MYRANDOM-HOSTNAME login:      
 ```
 
+> Note: VM running inside the container is connected via Linux Bridges. Ideally, we'd want to connect the VM directly using MACVTAP interfaces, but currently this is not supported due to [this bug](https://bugs.launchpad.net/maas/+bug/1788952). May need to revisit later.

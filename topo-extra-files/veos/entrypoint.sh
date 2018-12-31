@@ -116,5 +116,7 @@ fi
 echo $VIRT_FULL
 eval $VIRT_FULL
 
+echo "Management IP = $IPADDR"
+
 # Sleep and wait for the kill
 trap : TERM INT; sleep infinity & wait
