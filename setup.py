@@ -9,7 +9,7 @@ def collect_files():
 
 setup(
     name='docker-topo',
-    version='2.0.1',
+    version='2.0.2',
     scripts=['bin/docker-topo'],
     data_files=collect_files(),
     python_requires='>=3.5',

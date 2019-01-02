@@ -8,7 +8,7 @@ Docker network topology builder
 * Arista cEOS-lab
 * Arista vEOS-lab
 * Arista CVP
-* All [vrnetlab images](https://github.com/plajjan/vrnetlab) - currently only tested with CSR1k, vMX and XRv.
+* All [vrnetlab images][vrnetlab] - experimental support, currently only tested with CSR1k, vMX and XRv.
 
 # Installation
 
@@ -94,6 +94,9 @@ Each link endpoint is encoded as "DeviceName:InterfaceName:IPPrefix" with the fo
   * **host** - [alpine-host][alpine-host] image is going to be used
   * **cvp** - [cvp](https://github.com/networkop/docker-topo/tree/master/topo-extra-files/cvp) image is going to be used
   * **veos** - Arista vEOS image built according to the procedure described [here](https://github.com/networkop/docker-topo/blob/master/topo-extra-files/veos/README.md)
+  * **vmx** - Juniper vMX image built with [vrnetlab][vrnetlab]
+  * **csr** - Cisco CSR1000v image built with [vrnetlab][vrnetlab]
+  * **xrv** - Cisco IOS XRv image built with [vrnetlab][vrnetlab]
   * For anything else Arista cEOS image will be used 
 * **InterfaceName** must match the exact name of the interface you expect to see inside a container. For example if you expect to connect a link to DeviceA interface eth0, endpoint definition should be "DeviceA:eth0"
 * **IPPrefix** - Optional parameter that works **ONLY** for [alpine-host][alpine-host] devices and will attempt to configure a provided IP prefix inside a container.
@@ -261,3 +264,4 @@ docker-topo --destroy topo-extra-files/examples/3-node.yml
 
 [1]: https://networkop.co.uk/post/2018-03-03-docker-multinet/
 [alpine-host]: https://github.com/networkop/docker-topo/tree/master/topo-extra-files/host
+[vrnetlab]: https://github.com/plajjan/vrnetlab
