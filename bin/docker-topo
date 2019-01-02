@@ -29,6 +29,8 @@ CONF_DIR = './config'
 PUBLISH_BASE = 8000
 OOB_PREFIX = '192.168.100.0/24'
 PREFIX = 'CEOS-LAB'
+VMX_VERSION = 'vrnetlab/vr-vmx:17.2R1.13'
+CSR_VERSION = 'vrnetlab/vr-csr:16.04.01'
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Tool to create cEOS topologies")
@@ -138,6 +140,10 @@ def parse_endpoints(devices, endpoints, link, idx):
             device = devices.get(device_name, CVP(device_name))
         elif 'veos' in device_name.lower():
             device = devices.get(device_name, VEOS(device_name))
+        elif 'vmx' in device_name.lower():
+            device = devices.get(device_name, VMX(device_name))
+        elif 'csr' in device_name.lower():
+            device = devices.get(device_name, CSR(device_name))
         elif 'host' in device_name.lower():
             # Example: ep == ["Eth2","192.168.10.30/24"]
             device = devices.get(device_name, Host(device_name))
@@ -486,6 +492,30 @@ class VEOS(Device):
     def publish_port(self, *args, **kwargs):
         raise NotImplementedError("Can't publish ports for {}".format(self.__class__))
 
+class VMX(Device):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Overriding defaults
+        self.type = 'vmx'
+        self.image = VMX_VERSION
+        self.command = '--meshnet'
+        self.entry_cmd = 'ssh vrnetlab@$(docker inspect {} --format \'{{.NetworkSettings.IPAddress}}\')'.format(self.name)
+
+    def publish_port(self, *args, **kwargs):
+        raise NotImplementedError("Can't publish ports for {}".format(self.__class__))
+
+class CSR(Device):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Overriding defaults
+        self.type = 'csr'
+        self.image = CSR_VERSION
+        self.command = '--meshnet'
+        self.entry_cmd = 'ssh vrnetlab@$(docker inspect {} --format \'{{.NetworkSettings.IPAddress}}\')'.format(self.name)
+
+    def publish_port(self, *args, **kwargs):
+        raise NotImplementedError("Can't publish ports for {}".format(self.__class__))
+
 class Veth(object):
     def __init__(self, name):
         self.name = name
@@ -581,7 +611,7 @@ class Link(object):
 
 def main():
     # Initializing main variables
-    global PREFIX, CEOS_IMAGE, CONF_DIR, PUBLISH_BASE, OOB_PREFIX, VERSION, PUBLISH_SSH
+    global PREFIX, CEOS_IMAGE, CONF_DIR, PUBLISH_BASE, OOB_PREFIX, VERSION, PUBLISH_SSH, VMX_VERSION, CSR_VERSION
     
     # Assigning arguments
     args    = parse_args()
@@ -620,6 +650,8 @@ def main():
     PUBLISH_BASE = t_yml.get('PUBLISH_BASE', os.getenv('PUBLISH_BASE', PUBLISH_BASE))
     OOB_PREFIX = t_yml.get('OOB_PREFIX',os.getenv('OOB_PREFIX', OOB_PREFIX))
     VERSION = int(t_yml.get('VERSION',os.getenv('VERSION', VERSION)))
+    VMX_VERSION = t_yml.get('VMX_VERSION',os.getenv('VMX_VERSION', VMX_VERSION))
+    CSR_VERSION = t_yml.get('CSR_VERSION',os.getenv('CSR_VERSION', CSR_VERSION))
     PREFIX = t_yml.get('PREFIX',os.getenv('PREFIX', PREFIX))
 
     if VERSION == 2 and os.geteuid() != 0:

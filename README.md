@@ -3,9 +3,12 @@ Docker network topology builder
 
 [![Build Status](https://travis-ci.org/networkop/arista-ceos-topo.svg)](https://travis-ci.org/networkop/arista-ceos-topo)
 
-# TODO
+# Supported images
 
-* Add a configurable subnet option for docker bridge networks
+* Arista cEOS-lab
+* Arista vEOS-lab
+* Arista CVP
+* All [vrnetlab images](https://github.com/plajjan/vrnetlab) - currently only tested with CSR1k, vMX and XRv.
 
 # Installation
 
