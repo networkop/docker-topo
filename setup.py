@@ -9,7 +9,7 @@ def collect_files():
 
 setup(
     name='docker-topo',
-    version='2.0',
+    version='2.0.1',
     scripts=['bin/docker-topo'],
     data_files=collect_files(),
     python_requires='>=3.5',
@@ -19,9 +19,9 @@ setup(
         'netaddr',
         'pyroute2==0.5.2'
     ],
-    url='https://github.com/networkop/arista-ceos-topo',
+    url='https://github.com/networkop/docker-topo',
     license='BSD3',
     author='Michael Kashin',
-    author_email='mkashin@arista.com',
+    author_email='mmkashin@gmail.com',
     description='Docker network topology builder'
 )

@@ -18,13 +18,13 @@ With Python virtualenv (recommended)
 python3 -m pip install virtualenv
 python3 -m virtualenv testdir; cd testdir
 source bin/activate 
-pip install git+https://github.com/networkop/arista-ceos-topo.git
+pip install git+https://github.com/networkop/docker-topo.git
 ```
 
 Without virtualenv
 
 ````bash
-python3 -m pip install git+https://github.com/networkop/arista-ceos-topo.git
+python3 -m pip install git+https://github.com/networkop/docker-topo.git
 ````
 
 > Note: Python 2.x is not supported
@@ -65,7 +65,7 @@ contains a list of links. Each link is described by a unique set of connected in
 There are several versions of topology file formats. 
 
 ## Topology file v1
-This version is considered legacy and is documented [here](https://github.com/networkop/arista-ceos-topo/blob/master/v1.md). 
+This version is considered legacy and is documented [here](https://github.com/networkop/docker-topo-topo/blob/master/v1.md). 
 
 ## Topology file v2
 Each link in a `links` array is a dictionary with the following format:
@@ -92,7 +92,7 @@ Each link endpoint is encoded as "DeviceName:InterfaceName:IPPrefix" with the fo
 
 * **DeviceName** determines which docker image is going to be used by (case-insensitive) matching of the following strings:
   * **host** - [alpine-host][alpine-host] image is going to be used
-  * **cvp** - [cvp](https://github.com/networkop/arista-ceos-topo/tree/master/topo-extra-files/cvp) image is going to be used
+  * **cvp** - [cvp](https://github.com/networkop/docker-topo/tree/master/topo-extra-files/cvp) image is going to be used
   * **veos** - Arista vEOS image built according to the procedure described [here](https://github.com/networkop/docker-topo/blob/master/topo-extra-files/veos/README.md)
   * For anything else Arista cEOS image will be used 
 * **InterfaceName** must match the exact name of the interface you expect to see inside a container. For example if you expect to connect a link to DeviceA interface eth0, endpoint definition should be "DeviceA:eth0"
@@ -260,4 +260,4 @@ docker-topo --destroy topo-extra-files/examples/3-node.yml
 * CVP can't connect to cEOS devices - make sure that CVP is attached with at least two interfaces. The first one is always for external access and the second one if always for device management
 
 [1]: https://networkop.co.uk/post/2018-03-03-docker-multinet/
-[alpine-host]: https://github.com/networkop/arista-ceos-topo/tree/master/topo-extra-files/host
+[alpine-host]: https://github.com/networkop/docker-topo/tree/master/topo-extra-files/host
