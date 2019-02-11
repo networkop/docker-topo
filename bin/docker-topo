@@ -536,9 +536,9 @@ class XRV(Device):
 
 class Generic(Device):
     def __init__(self, *args, **kwargs):
+        self.image = kwargs.pop('image', "alpine")
         super().__init__(*args, **kwargs)
         # Overriding defaults
-        self.image = kwargs.get('image', "alpine")
         self.type = 'generic'
         self.entry_cmd = 'docker exec -it {}'.format(self.name)
 
