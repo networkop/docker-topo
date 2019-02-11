@@ -32,6 +32,7 @@ PREFIX = 'CEOS-LAB'
 VMX_VERSION = 'vrnetlab/vr-vmx:17.2R1.13'
 CSR_VERSION = 'vrnetlab/vr-csr:16.04.01'
 XRV_VERSION = 'vrnetlab/vr-xrv:6.1.2'
+CUSTOM_IMAGE = dict()
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Tool to create cEOS topologies")
@@ -146,6 +147,9 @@ def parse_endpoints(devices, endpoints, link, idx):
             device = devices.get(device_name, CSR(device_name))
         elif 'xrv' in device_name.lower():
             device = devices.get(device_name, XRV(device_name))
+        elif any(image in device_name.lower() for image in CUSTOM_IMAGE.keys()):
+            image_name = CUSTOM_IMAGE[device_name.lower()]
+            device = devices.get(device_name, Generic(device_name, image=image_name))
         elif 'host' in device_name.lower():
             # Example: ep == ["Eth2","192.168.10.30/24"]
             device = devices.get(device_name, Host(device_name))
@@ -530,6 +534,18 @@ class XRV(Device):
     def publish_port(self, *args, **kwargs):
         raise NotImplementedError("Can't publish ports for {}".format(self.__class__))
 
+class Generic(Device):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Overriding defaults
+        self.image = kwargs.get('image', "alpine")
+        self.type = 'generic'
+        self.entry_cmd = 'docker exec -it {}'.format(self.name)
+
+    def publish_port(self, *args, **kwargs):
+        raise NotImplementedError("Can't publish ports for {}".format(self.__class__))
+
+
 class Veth(object):
     def __init__(self, name):
         self.name = name
@@ -625,7 +641,7 @@ class Link(object):
 
 def main():
     # Initializing main variables
-    global PREFIX, CEOS_IMAGE, CONF_DIR, PUBLISH_BASE, OOB_PREFIX, VERSION, PUBLISH_SSH, VMX_VERSION, CSR_VERSION, XRV_VERSION
+    global PREFIX, CEOS_IMAGE, CONF_DIR, PUBLISH_BASE, OOB_PREFIX, VERSION, PUBLISH_SSH, VMX_VERSION, CSR_VERSION, XRV_VERSION, CUSTOM_IMAGE
     
     # Assigning arguments
     args    = parse_args()
@@ -667,6 +683,7 @@ def main():
     VMX_VERSION = t_yml.get('VMX_VERSION',os.getenv('VMX_VERSION', VMX_VERSION))
     CSR_VERSION = t_yml.get('CSR_VERSION',os.getenv('CSR_VERSION', CSR_VERSION))
     XRV_VERSION = t_yml.get('XRV_VERSION',os.getenv('XRV_VERSION', XRV_VERSION))
+    CUSTOM_IMAGE = t_yml.get('CUSTOM_IMAGE',os.getenv('CUSTOM_IMAGE', CUSTOM_IMAGE))
     PREFIX = t_yml.get('PREFIX',os.getenv('PREFIX', PREFIX))
 
     if VERSION == 2 and os.geteuid() != 0:
