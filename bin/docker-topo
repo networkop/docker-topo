@@ -148,7 +148,7 @@ def parse_endpoints(devices, endpoints, link, idx):
         elif 'xrv' in device_name.lower():
             device = devices.get(device_name, XRV(device_name))
         elif any(image in device_name.lower() for image in CUSTOM_IMAGE.keys()):
-            image_name = CUSTOM_IMAGE[device_name.lower()]
+            image_name = [CUSTOM_IMAGE[image] for image in CUSTOM_IMAGE.keys() if image in device_name.lower()][0]
             device = devices.get(device_name, Generic(device_name, image=image_name))
         elif 'host' in device_name.lower():
             # Example: ep == ["Eth2","192.168.10.30/24"]
@@ -536,9 +536,10 @@ class XRV(Device):
 
 class Generic(Device):
     def __init__(self, *args, **kwargs):
-        self.image = kwargs.pop('image', "alpine")
+        image = kwargs.pop('image', "alpine")
         super().__init__(*args, **kwargs)
         # Overriding defaults
+        self.image = image
         self.type = 'generic'
         self.entry_cmd = 'docker exec -it {}'.format(self.name)
 

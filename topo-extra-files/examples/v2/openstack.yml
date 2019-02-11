@@ -1,5 +1,5 @@
 links:
-  - endpoints: ["veos-1:eth0", "veos-2:eth0", "veos-3:eth0", "os-1:eth0", "os-1:eth0"]
+  - endpoints: ["veos-1:eth0", "veos-2:eth0", "veos-3:eth0", "os-1:eth0", "os-2:eth0"]
     driver: bridge
   - endpoints: ["veos-1:eth1", "veos-2:eth1"]
   - endpoints: ["veos-1:eth2", "veos-3:eth1"]
@@ -11,6 +11,5 @@ driver: veth
 PREFIX: os
 CONF_DIR: ./config
 CUSTOM_IMAGE:
-  os-1: openstack
-  os-2: openstack
+  os: openstack
 PUBLISH_BASE: 9000
