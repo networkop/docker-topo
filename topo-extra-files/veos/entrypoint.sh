@@ -3,8 +3,8 @@
 echo 'Sleeping to wait for all interfaces to be connected'
 sleep 5
 
-echo 'Making sure that /dev/kvm has the right permissions'
-if [ ! -f /dev/kvm ]; then
+echo 'Making sure that character device /dev/kvm exists and setting the right permissions'
+if [ ! -d /dev/kvm ]; then
   echo "Requirement not satisfied: /dev/kvm not present"
   exit 1
 fi
