@@ -541,7 +541,7 @@ class Generic(Device):
         # Overriding defaults
         self.image = image
         self.type = 'generic'
-        self.entry_cmd = 'docker exec -it {}'.format(self.name)
+        self.entry_cmd = 'docker exec -it {} sh'.format(self.name)
 
     def publish_port(self, *args, **kwargs):
         raise NotImplementedError("Can't publish ports for {}".format(self.__class__))

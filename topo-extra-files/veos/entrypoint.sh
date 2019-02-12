@@ -3,6 +3,14 @@
 echo 'Sleeping to wait for all interfaces to be connected'
 sleep 5
 
+echo 'Making sure that /dev/kvm has the right permissions'
+if [ ! -f /dev/kvm ]; then
+  echo "Requirement not satisfied: /dev/kvm not present"
+  exit 1
+fi
+chown root:kvm /dev/kvm
+ls -la /dev/kvm
+
 echo '############################'
 echo '# Stealing the IP off eth0 #'
 echo '############################'

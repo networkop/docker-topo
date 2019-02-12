@@ -1,6 +1,8 @@
 links:
   - endpoints: ["veos-1:eth0", "veos-2:eth0", "veos-3:eth0", "os-1:eth0", "os-2:eth0"]
     driver: bridge
+    driver_opts: 
+      "com.docker.network.bridge.enable_ip_masquerade": "true"
   - endpoints: ["veos-1:eth1", "veos-2:eth1"]
   - endpoints: ["veos-1:eth2", "veos-3:eth1"]
   - endpoints: ["os-1:eth1", "veos-2:eth2"]
