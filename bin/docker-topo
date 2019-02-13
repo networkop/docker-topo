@@ -238,6 +238,7 @@ class Device(object):
     def __init__(self, name):
         LOG.debug('\tConstructing device {}'.format(name))
         self.name = '_'.join([PREFIX, name])
+        self.hostname = name
         # Setting up defaults
         self.type = ''
         self.image = ''
@@ -290,6 +291,7 @@ class Device(object):
                 self.image,
                 command=self.command,
                 environment=self.environment,
+                hostname=self.hostname,
                 volumes=self.volumes,
                 network=self.default_network,
                 privileged=True,
