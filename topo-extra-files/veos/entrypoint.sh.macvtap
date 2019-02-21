@@ -1,0 +1,113 @@
+#!/bin/bash
+
+echo 'Sleeping to wait for all interfaces to be connected'
+sleep 0
+
+VMNAME=veos
+RAM=2048
+CPU=1
+
+echo 'Making sure that character device /dev/kvm exists and setting the right permissions'
+if [ ! -c /dev/kvm ]; then
+  echo "Requirement not satisfied: /dev/kvm not present"
+  exit 1
+fi
+chown root:kvm /dev/kvm
+ls -la /dev/kvm
+
+echo '############################'
+echo '# Stealing the IP off eth0 #'
+echo '############################'
+
+HOSTNAME=$(hostname)
+IPADDR=$(ip addr show eth0 | grep inet | awk 'NR==1 {print $2}')
+GW=$(ip route get 8.8.8.8 | awk 'NR==1 {print $3}')
+ip addr flush dev eth0
+ip addr
+
+echo '####################################'
+echo '# Saving eth0 IP in startup-config #'
+echo '####################################'
+
+rm -f /tmp/management-config
+
+cat << EOF > /tmp/management-config
+!
+interface Management1
+   ip address $IPADDR
+   no shutdown
+   exit
+!
+ip route 0.0.0.0/0 $GW
+!
+EOF
+
+
+cat /tmp/management-config >> /mnt/flash/startup-config
+cat /mnt/flash/startup-config
+
+INTFS=$(ls /sys/class/net/ | grep 'eth\|ens\|eno')
+
+echo '#####################'
+echo '# Creating macvtaps #'
+echo '#####################'
+for i in $INTFS; do
+  NAME="macvtap$i"
+  ip link add link $i name $NAME type macvtap
+  ip link set $NAME up
+  read MAJOR MINOR < <(cat /sys/devices/virtual/net/$NAME/tap*/dev | tr ':' ' ')
+  mknod /dev/tap-$i c ${MAJOR} ${MINOR}
+done
+
+echo '====='
+ip link
+echo '====='
+
+echo '##########################'
+echo '# Create a startup CDROM #'
+echo '##########################'
+
+HOSTNAME=$(hostname)
+if [ ! -f /mnt/flash/startup-config ]; then
+  echo "hostname $HOSTNAME" > /mnt/flash/startup-config
+fi
+
+genisoimage -J -r -o /var/lib/libvirt/images/cdrom.iso /mnt/flash/startup-config /mnt/flash/rc.eos
+
+echo '#################'
+echo '# Creating a VM #'
+echo '#################'
+
+QEMU="/usr/libexec/qemu-kvm \
+  -name $VMNAME \
+  -machine pc \
+  -enable-kvm \
+  -m $RAM \
+  -cpu host,level=9 \
+  -smp $CPU,sockets=1,cores=1 \
+  -display none \
+  -nographic \
+  -serial telnet:0.0.0.0:23,server,nowait \
+  -monitor telnet:0.0.0.0:2323,server,nowait \
+  -boot order=c,menu=on \
+  -drive file=/var/lib/libvirt/images/veos.qcow2,format=qcow2,if=ide \
+  -drive file=/var/lib/libvirt/images/cdrom.iso,format=raw,media=cdrom,readonly"
+
+NICS=""
+for i in $INTFS; do 
+  NAME="macvtap$i"
+  MAC=$(cat /sys/class/net/$NAME/address)
+  INTFIDX=$(cat /sys/class/net/$NAME/ifindex)
+  NICS=$NICS" -net tap,fd=$INTFIDX $INTFIDX<>/dev/tap-$i \
+              -net nic,model=virtio,macaddr=$MAC "
+done
+
+QEMU_FULL=$QEMU
+
+echo $QEMU_FULL > startup
+eval $QEMU_FULL
+
+echo "Management IP = $IPADDR"
+
+# Sleep and wait for the kill
+trap : TERM INT; sleep infinity & wait

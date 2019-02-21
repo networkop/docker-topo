@@ -3,7 +3,7 @@ FROM centos:latest
 # Include epel for python-pip and update cache
 RUN yum -y install epel-release && \
     yum makecache fast && \
-    yum install -y qemu-kvm bridge-utils iproute libvirt libvirt-client genisoimage virt-install && \
+    yum install -y qemu-kvm bridge-utils iproute libvirt libvirt-client genisoimage virt-install telnet && \
     yum clean all
 
 # Copy the CVP and CVP-tools into the container
