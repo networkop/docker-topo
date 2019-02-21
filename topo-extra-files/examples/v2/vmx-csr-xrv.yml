@@ -1,0 +1,12 @@
+VERSION: 2
+PREFIX: vrn
+driver: veth
+links:
+    - endpoints: ["vmx:eth0", "csr:eth0", "xrv:eth0"]
+      driver: bridge
+    - endpoints:
+        - "vmx:eth1" 
+        - "csr:eth1"
+    - endpoints: ["vmx:eth2", "xrv:eth1"]
+
+

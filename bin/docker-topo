@@ -35,7 +35,7 @@ XRV_VERSION = 'vrnetlab/vr-xrv:6.1.2'
 CUSTOM_IMAGE = dict()
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Tool to create cEOS topologies")
+    parser = argparse.ArgumentParser(description="Tool to create docker topologies")
     parser.add_argument(
         '-d', '--debug',
         help='Enable Debug',

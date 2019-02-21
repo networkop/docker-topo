@@ -1,5 +1,6 @@
 from setuptools import setup
 import os
+import sys
 
 EXTRA_FILES = "topo-extra-files"
 
@@ -17,7 +18,7 @@ setup(
     scripts=["bin/docker-topo"],
     data_files=collect_files(),
     python_requires=">=3.5",
-    install_requires=["pyyaml", "docker", "netaddr", "pyroute2==0.5.2"],
+    install_requires=["pyyaml", "docker", "netaddr"] + (["pyroute2==0.5.3"] if 'linux' in sys.platform.lower() else [])
     url="https://github.com/networkop/docker-topo",
     license="BSD3",
     author="Michael Kashin",

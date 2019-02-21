@@ -1,0 +1,14 @@
+links:
+  - endpoints: ["veos-1:eth0", "os-1:eth0"]
+    driver: bridge
+    driver_opts: 
+      "com.docker.network.bridge.enable_ip_masquerade": "true"
+  - endpoints: ["veos-1:eth1", "os-1:eth1"]
+
+VERSION: 2
+driver: veth
+PREFIX: os
+CONF_DIR: ./config
+CUSTOM_IMAGE:
+  os: openstack
+PUBLISH_BASE: 9000

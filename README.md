@@ -9,6 +9,7 @@ Docker network topology builder
 * Arista vEOS-lab
 * Arista CVP
 * All [vrnetlab images][vrnetlab] - experimental support, currently only tested with CSR1k, vMX and XRv.
+* User-defined docker images
 
 # Installation
 
@@ -194,7 +195,15 @@ drwxr-xr-x root/root         0 2018-09-14 11:53 config/
 
 ```
 
+## (Optional) User-defined docker images
+It is possible to create topology with arbitrary docker images. One such example is the [openstack topology](https://github.com/networkop/docker-topo/blob/master/topo-extra-files/examples/v2/openstack.yml). Whenever a `CUSTOM_IMAGE` dictionary present, any device names that did not match against the well-known images (e.g. cEOS, vEOS, Host, VMX, CSR etc.), will be matched against the keys of this dictionary and, if match is found, the corresponding value will be used as an image. So in case the topology file has:
 
+```yaml
+CUSTOM_IMAGE:
+  search_key: docker_image
+```
+
+The `docker-topo` image matching logic will try to see if `search_key in device_name.lower()` and if True, will build a `Generic` device type with `self.image == docker_image`.
 
 
 # Example 1 - Creating a 2-node topology interconnected directly with veth links (without config)
