@@ -1,7 +1,7 @@
 # docker-topo
 Docker network topology builder
 
-[![Build Status](https://travis-ci.org/networkop/arista-ceos-topo.svg)](https://travis-ci.org/networkop/arista-ceos-topo)
+[![Build Status](https://travis-ci.org/networkop/docker-topo.svg)](https://travis-ci.org/networkop/docker-topo)
 
 # Supported images
 
