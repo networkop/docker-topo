@@ -1,11 +1,7 @@
 #!/bin/bash
 
 echo 'Sleeping to wait for all interfaces to be connected'
-sleep 0
-
-VMNAME=veos
-RAM=2048
-CPU=1
+sleep 5
 
 echo 'Making sure that character device /dev/kvm exists and setting the right permissions'
 if [ ! -c /dev/kvm ]; then
@@ -48,23 +44,42 @@ cat /mnt/flash/startup-config
 
 INTFS=$(ls /sys/class/net/ | grep 'eth\|ens\|eno')
 
-echo '#####################'
-echo '# Creating macvtaps #'
-echo '#####################'
-INDEX=0
-for intf in $INTFS; do
-  NAME="macvtap$intf"
-  ip link add link $intf name $NAME type macvtap
-  ip link set $NAME up
-  read MAJOR MINOR < <(cat /sys/devices/virtual/net/$NAME/tap*/dev | tr ':' ' ')
-  mknod /dev/tap-$INDEX c ${MAJOR} ${MINOR}
-  echo "ip link set eth${INDEX} name ${intf}" >> /mnt/flash/rc.eos
-  let INDEX=${INDEX}+1
+echo '####################'
+echo '# Creating bridges #'
+echo '####################'
+BRIDGE=""
+ip link add name bridge_name type bridge
+for i in $INTFS; do
+  BRIDGE=$BRIDGE"ip link add name br-$i type bridge;"
+  BRIDGE=$BRIDGE"ip link set br-$i up;"
+  BRIDGE=$BRIDGE"ip link set $i master br-$i;"
+  BRIDGE=$BRIDGE"echo 16384 > /sys/class/net/br-$i/bridge/group_fwd_mask;"
+  
 done
 
+echo -e $BRIDGE
+eval $BRIDGE
+
 echo '====='
-ip link
+bridge link
 echo '====='
+brctl show
+echo '====='
+
+echo '#############################'
+echo '# Starting libvirt services #'
+echo '#############################'
+
+/usr/sbin/libvirtd &
+/usr/sbin/virtlogd &
+
+echo '# Wait for 10 seconds for libvirt sockets to be created'
+TIMEOUT=$((SECONDS+10))
+while [ $SECONDS -lt $TIMEOUT ]; do
+    if [ -S /var/run/libvirt/libvirt-sock ]; then
+       break;
+    fi
+done
 
 echo '##########################'
 echo '# Create a startup CDROM #'
@@ -81,37 +96,33 @@ echo '#################'
 echo '# Creating a VM #'
 echo '#################'
 
-QEMU="/usr/libexec/qemu-kvm \
-  -name $VMNAME \
-  -machine pc \
-  -enable-kvm \
-  -m $RAM \
-  -cpu host,level=9 \
-  -smp $CPU,sockets=1,cores=1 \
-  -display none \
-  -nographic \
-  -serial telnet:0.0.0.0:23,server,nowait \
-  -monitor telnet:0.0.0.0:2323,server,nowait \
-  -boot order=c,menu=on \
-  -drive file=/var/lib/libvirt/images/veos.qcow2,format=qcow2,if=ide \
-  -drive file=/var/lib/libvirt/images/cdrom.iso,format=raw,media=cdrom,readonly"
+VIRT_MAIN="virt-install \
+  --connect qemu:///system \
+  --autostart \
+  -n veos \
+  -r 2048 \
+  --vcpus 1 \
+  --os-type=linux \
+  --disk path=/var/lib/libvirt/images/veos.qcow2,bus=ide \
+  --disk path=/var/lib/libvirt/images/cdrom.iso,device=cdrom \
+  --graphics none \
+  --console pty,target_type=serial"
 
-NICS=""
-INDEX=0
+VIRT_NET=""
 for i in $INTFS; do 
-  NAME="macvtap$i"
-  MAC=$(cat /sys/class/net/$NAME/address)
-  INTFIDX=$(cat /sys/class/net/$NAME/ifindex)
-  NICS=$NICS" -net nic,model=virtio,macaddr=$MAC -net tap,fd=${INDEX} ${INDEX}<>/dev/tap-${INDEX} "
-  let INDEX=${INDEX}+1
-#  NICS=$NICS" -net tap,fd=$INTFIDX $INTFIDX<>/dev/tap-$i \
-#              -net nic,model=virtio,macaddr=$MAC "
+  VIRT_NET=$VIRT_NET" --network bridge=br-$i,model=e1000"
 done
 
-QEMU_FULL=$QEMU$NICS
+VIRT_FULL=$VIRT_MAIN$VIRT_NET
 
-echo $QEMU_FULL > startup
-eval $QEMU_FULL
+if virsh dominfo veos; then 
+  echo 'VEOS VM already exists, destroying the old domain'
+  virsh destroy veos
+  virsh undefine veos
+fi
+
+echo $VIRT_FULL
+eval $VIRT_FULL
 
 echo "Management IP = $IPADDR"
 

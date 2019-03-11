@@ -51,12 +51,15 @@ INTFS=$(ls /sys/class/net/ | grep 'eth\|ens\|eno')
 echo '#####################'
 echo '# Creating macvtaps #'
 echo '#####################'
-for i in $INTFS; do
-  NAME="macvtap$i"
-  ip link add link $i name $NAME type macvtap
+INDEX=0
+for intf in $INTFS; do
+  NAME="macvtap$intf"
+  ip link add link $intf name $NAME type macvtap
   ip link set $NAME up
   read MAJOR MINOR < <(cat /sys/devices/virtual/net/$NAME/tap*/dev | tr ':' ' ')
-  mknod /dev/tap-$i c ${MAJOR} ${MINOR}
+  mknod /dev/tap-$INDEX c ${MAJOR} ${MINOR}
+  echo "ip link set eth${INDEX} name ${intf}" > /mnt/flash/rc.eos
+  let INDEX=${INDEX}+1
 done
 
 echo '====='
