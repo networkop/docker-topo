@@ -20,10 +20,12 @@ echo '# Stealing the IP off eth0 #'
 echo '############################'
 
 HOSTNAME=$(hostname)
-IPADDR=$(ip addr show eth0 | grep inet | awk 'NR==1 {print $2}')
-GW=$(ip route get 8.8.8.8 | awk 'NR==1 {print $3}')
-ip addr flush dev eth0
-ip addr
+#IPADDR=$(ip addr show eth0 | grep inet | awk 'NR==1 {print $2}')
+#GW=$(ip route get 8.8.8.8 | awk 'NR==1 {print $3}')
+#ip addr flush dev eth0
+#ip addr
+IPADDR=10.0.0.15/24
+GW=10.0.0.2
 
 echo '####################################'
 echo '# Saving eth0 IP in startup-config #'
@@ -53,7 +55,11 @@ echo '# Creating macvtaps #'
 echo '#####################'
 INDEX=0
 for intf in $INTFS; do
-  NAME="macvtap$intf"
+  if [ "${intf}" == "eth0" ]; then 
+    let INDEX=${INDEX}+1
+    continue
+  fi
+  NAME="macvtap${INDEX}"
   ip link add link $intf name $NAME type macvtap
   ip link set $NAME up
   read MAJOR MINOR < <(cat /sys/devices/virtual/net/$NAME/tap*/dev | tr ':' ' ')
@@ -99,7 +105,12 @@ QEMU="/usr/libexec/qemu-kvm \
 NICS=""
 INDEX=0
 for i in $INTFS; do 
-  NAME="macvtap$i"
+  if [ "${intf}" == "eth0" ]; then 
+    let INDEX=${INDEX}+1
+    NICS=$NICS" -device e1000,netdev=mgmt -netdev user,id=mgmt,net=10.0.0.0/24,hostfwd=tcp::22-:22 "
+    continue
+  fi
+  NAME="macvtap${INDEX}"
   MAC=$(cat /sys/class/net/$NAME/address)
   INTFIDX=$(cat /sys/class/net/$NAME/ifindex)
   NICS=$NICS" -net nic,model=virtio,macaddr=$MAC -net tap,fd=${INDEX} ${INDEX}<>/dev/tap-${INDEX} "
