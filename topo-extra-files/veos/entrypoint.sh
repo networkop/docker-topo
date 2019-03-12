@@ -64,7 +64,6 @@ for intf in $INTFS; do
   ip link set $NAME up
   read MAJOR MINOR < <(cat /sys/devices/virtual/net/$NAME/tap*/dev | tr ':' ' ')
   mknod /dev/tap-$INDEX c ${MAJOR} ${MINOR}
-  echo "ip link set eth${INDEX} name ${intf}" >> /mnt/flash/rc.eos
   let INDEX=${INDEX}+1
 done
 
@@ -104,7 +103,7 @@ QEMU="/usr/libexec/qemu-kvm \
 
 NICS=""
 INDEX=0
-for i in $INTFS; do 
+for intf in $INTFS; do 
   if [ "${intf}" == "eth0" ]; then 
     let INDEX=${INDEX}+1
     NICS=$NICS" -device e1000,netdev=mgmt -netdev user,id=mgmt,net=10.0.0.0/24,hostfwd=tcp::22-:22 "
@@ -122,9 +121,11 @@ done
 QEMU_FULL=$QEMU$NICS
 
 echo $QEMU_FULL > startup
-eval $QEMU_FULL
+eval $QEMU_FULL &
 
 echo "Management IP = $IPADDR"
+
+iptables -t nat -A INPUT -j SNAT --to-source 10.0.0.2
 
 # Sleep and wait for the kill
 trap : TERM INT; sleep infinity & wait
