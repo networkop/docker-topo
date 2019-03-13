@@ -1,5 +1,7 @@
 # Running vEOS in a container
 
+> Note: this is an experimental release introducing bridge-less VM connection through macvtap interfaces. 
+
 This will run a vEOS as a KVM VM inside a Docker container. The assumption is that 
 Docker host allows to run privileged containers and has KVM enabled
 
@@ -56,12 +58,14 @@ localhost#bash
 [admin@localhost ~]$ mkdir /tmp/cdrom 
 [admin@localhost ~]$ sudo mount -t iso9660 /dev/cdrom /tmp/cdrom/
 [admin@localhost ~]$ cp /tmp/cdrom/rc.eos /mnt/flash/
+[admin@localhost ~]$ sudo shutdown now
 ```
 
-* Disconnect from the container and commit changes into a new image:
+* Shutdown the VM, disconnect from the container and commit changes into a new image:
 
 ```bash
-[root@03ac4c733bc7 /]# virsh destroy veos
+[root@03ac4c733bc7 /]# pkill qemu
+[root@03ac4c733bc7 /]# rm /mnt/flash/startup-config
 [root@03ac4c733bc7 /]# exit
 $ docker commit veos veos:latest
 $ docker rm -f veos
@@ -77,4 +81,4 @@ docker exec -it veos bash
 MYRANDOM-HOSTNAME login:      
 ```
 
-> Note: VM running inside the container is connected via Linux Bridges. Ideally, we'd want to connect the VM directly using MACVTAP interfaces, but currently this is not supported due to [this bug](https://bugs.launchpad.net/maas/+bug/1788952). May need to revisit later.
+> Note(Resolved?): VM running inside the container is connected via Linux Bridges. Ideally, we'd want to connect the VM directly using MACVTAP interfaces, but currently this is not supported due to [this bug](https://bugs.launchpad.net/maas/+bug/1788952). May need to revisit later.
