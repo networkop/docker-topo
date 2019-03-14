@@ -46,7 +46,7 @@ Startup injection works by mounting an ISO CDROM to the vEOS VM and using an ini
 ```bash
 $ docker run -d --name veos --privileged veos
 $ docker exec -it veos bash
-[root@03ac4c733bc7 /]# virsh console veos
+[root@03ac4c733bc7 /]# telnet localhost 23
 ```
 
 * From inside the vEOS drop into the bash shell, mount the CDROM and copy the init script into the persistent storage directory:
@@ -65,7 +65,7 @@ localhost#bash
 
 ```bash
 [root@03ac4c733bc7 /]# pkill qemu
-[root@03ac4c733bc7 /]# rm /mnt/flash/startup-config
+[root@03ac4c733bc7 /]# rm -f /mnt/flash/startup-config
 [root@03ac4c733bc7 /]# exit
 $ docker commit veos veos:latest
 $ docker rm -f veos
@@ -77,8 +77,28 @@ From now on, you can mount startup configuration file  into `/mnt/flash/startup-
 echo "hostname MYRANDOM-HOSTNAME" > my-config
 docker run -d --name veos -v $(pwd)/my-config:/mnt/flash/startup-config --privileged veos
 docker exec -it veos bash
-[root@de16326e92f2 /]# virsh console veos
+[root@de16326e92f2 /]# telnet localhost 23
 MYRANDOM-HOSTNAME login:      
+```
+
+## Uploading to Docker Registry
+
+Assuming Docker registry is running as a POD on k8s cluster, create a pointer to the future vEOS docker image
+
+```
+export VEOS_IMAGE=$(kubectl get service docker-registry -o json | jq -r '.spec.clusterIP'):5000/veos:latest
+```
+
+Tag the current vEOS docker image with the registry url
+
+```
+docker image tag veos:latest $VEOS_IMAGE
+```
+
+Push the docker image into the registry
+
+```
+docker image push $VEOS_IMAGE
 ```
 
 > Note(Resolved?): VM running inside the container is connected via Linux Bridges. Ideally, we'd want to connect the VM directly using MACVTAP interfaces, but currently this is not supported due to [this bug](https://bugs.launchpad.net/maas/+bug/1788952). May need to revisit later.
