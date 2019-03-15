@@ -1,0 +1,17 @@
+VERSION: 2
+PREFIX: veos
+driver: veth
+links:
+  - endpoints: ["vEOS-1:eth0", "vEOS-2:eth0"]
+    driver: bridge
+  - endpoints: ["vEOS-1:eth1", "vEOS-2:eth1"]
+  - endpoints: ["vEOS-1:eth2", "vEOS-2:eth2"]
+  - endpoints: ["vEOS-1:eth3", "vEOS-2:eth3"]
+  - endpoints: ["vEOS-1:eth4", "vEOS-2:eth4"]
+  - endpoints: ["vEOS-1:eth5", "vEOS-2:eth5"]
+  - endpoints: ["vEOS-1:eth6", "vEOS-2:eth6"]
+  - endpoints: ["vEOS-1:eth7", "vEOS-2:eth7"]
+  - endpoints: ["vEOS-1:eth8", "vEOS-2:eth8"]
+  - endpoints: ["vEOS-1:eth9", "vEOS-2:eth9"]
+  - endpoints: ["vEOS-1:eth10", "vEOS-2:eth10"]
+ 

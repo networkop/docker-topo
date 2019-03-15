@@ -1,11 +1,11 @@
 #!/bin/bash
 
 echo 'Sleeping to wait for all interfaces to be connected'
-sleep 2
+sleep 10
 
 VMNAME=veos
 RAM=2048
-CPU=1
+CPU=2
 
 echo '#####################'
 echo '# Checking /dev/kvm #'
@@ -62,6 +62,10 @@ for slot in `seq 3 19`; do
   done;
 done
 
+# This will become the hard-coded first octet of MAC address 
+# to ensure that the address is globally unique (otherwise MLAG fails)
+MAC_FIRSTBYTE=50
+
 if [ "${#INTFS[@]}" -gt "${#ADDR[@]}" ]; then
   echo "Maximum number of interfaces ${#ADDR} exceeded"
   return 1
@@ -81,6 +85,8 @@ for idx in "${!INTFS[@]}"; do
     continue
   fi
   NAME="macvtap${idx}"
+  MAC="${MAC_FIRSTBYTE}:$(cat /sys/class/net/${intf}/address | cut -d':' -f2-6)"
+  ip link set dev $intf address $MAC
   ip link add link $intf name $NAME type macvtap mode passthru
   ip link set $NAME up
   ip link set dev $NAME allmulticast on

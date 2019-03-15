@@ -1,0 +1,9 @@
+VERSION: 2
+CEOS_IMAGE: ceosimage:latest
+PUBLISH_BASE: 9000
+driver: veth
+PREFIX: i
+links:
+        - endpoints: ["Device-A:eth2_4", "Device-B:eth1_1"]
+
+
