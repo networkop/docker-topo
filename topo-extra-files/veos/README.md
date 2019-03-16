@@ -65,7 +65,7 @@ localhost#bash
 
 ```bash
 [root@03ac4c733bc7 /]# pkill qemu
-[root@03ac4c733bc7 /]# rm -f /mnt/flash/startup-config
+[root@03ac4c733bc7 /]# rm -f /etc/config
 [root@03ac4c733bc7 /]# exit
 $ docker commit veos veos:latest
 $ docker rm -f veos

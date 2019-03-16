@@ -6,6 +6,7 @@ sleep 10
 VMNAME=veos
 RAM=2048
 CPU=2
+CONFIG=/etc/config
 
 echo '#####################'
 echo '# Checking /dev/kvm #'
@@ -27,13 +28,15 @@ HOSTNAME=$(hostname)
 IPADDR=10.0.0.15/24
 GW=10.0.0.2
 
+echo 'Initialising startup-config'
 HOSTNAME=$(hostname)
 if [ ! -f /mnt/flash/startup-config ]; then
-  echo "hostname $HOSTNAME" > /mnt/flash/startup-config
+  echo "hostname $HOSTNAME" > $CONFIG
+else
+  cat /mnt/flash/startup-config > $CONFIG
 fi
 
 rm -f /tmp/management-config
-
 cat << EOF > /tmp/management-config
 !
 interface Management1
@@ -45,9 +48,8 @@ ip route 0.0.0.0/0 $GW
 !
 EOF
 
-
-cat /tmp/management-config >> /mnt/flash/startup-config
-cat /mnt/flash/startup-config
+cat /tmp/management-config >> $CONFIG
+cat $CONFIG
 
 echo '#########################'
 echo '# Setting up interfaces #'
@@ -102,7 +104,7 @@ echo '############################'
 echo '# Creating a startup CDROM #'
 echo '############################'
 
-genisoimage -J -r -o /var/lib/libvirt/images/cdrom.iso /mnt/flash/startup-config /mnt/flash/rc.eos
+genisoimage -J -r -o /var/lib/libvirt/images/cdrom.iso $CONFIG /mnt/flash/rc.eos
 
 echo '#################'
 echo '# Creating a VM #'
