@@ -10,7 +10,8 @@ import netaddr
 import subprocess
 from pyroute2 import IPDB
 from pyroute2 import netns
-from pyroute2 import NetNS
+if sys.platform != 'darwin':
+  from pyroute2 import NetNS
 from distutils.version import LooseVersion
 
 # Global constants
@@ -666,7 +667,7 @@ def main():
 
     # Loading topology YAML file
     with open(t_file, 'r') as stream:
-        t_yml = yaml.load(stream)
+        t_yml = yaml.safe_load(stream)
     LOG.debug("Loaded topology from YAML file {}\n {}"
                  .format(t_file, yaml.dump(t_yml)))
     if 'links' not in t_yml:
