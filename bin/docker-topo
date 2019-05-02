@@ -10,9 +10,9 @@ import netaddr
 import subprocess
 from pyroute2 import IPDB
 if sys.platform != 'darwin':
-  import NetNS
+  from pyroute2 import NetNS
 elif sys.platform == 'darwin':
-  import netns
+  from pyroute2 import netns
 from distutils.version import LooseVersion
 
 # Global constants
