@@ -25,7 +25,7 @@ pip install git+https://github.com/networkop/docker-topo.git
 Without virtualenv
 
 ````bash
-python3 -m pip install git+https://github.com/networkop/docker-topo.git
+python3 -m pip install --upgrade --user git+https://github.com/networkop/docker-topo.git
 ````
 
 > Note: Python 2.x is not supported
