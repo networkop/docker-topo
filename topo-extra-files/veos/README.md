@@ -33,8 +33,7 @@ Allow up to 5 minutes to boot
 ## Logging in to vEOS
 
 ```bash
-docker exec -it veos bash
-virsh console veos
+docker exec -it veos telnet localhost 23
 ```
 
 ## Inject startup config

@@ -480,7 +480,7 @@ class VEOS(Device):
         # Overriding defaults
         self.type = 'veos'
         self.image = 'veos:latest'
-        self.entry_cmd = 'docker exec -it {} virsh console veos --force'.format(self.name)
+        self.entry_cmd = 'docker exec -it {} telnet localhost 23'.format(self.name)
         # Overriding extra variables
         self.volumes = self._get_config()
 
