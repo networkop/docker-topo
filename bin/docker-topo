@@ -121,7 +121,22 @@ def enable_write_mem(devices):
     cmd = "sed -i 's/os.rename( srcFileName, dstFileName )/import shutil;shutil.move( srcFileName, dstFileName )/' /usr/lib/python2.7/site-packages/Url.py"
     [d.container.exec_run(cmd) for _,d in devices.items() if d.type == 'ceos']
 
+def enable_bridge_forwarding():
+    #cmd = 'sysctl net.bridge.bridge-nf-call-iptables=0'
+    check_cmd = 'iptables -C DOCKER-ISOLATION-STAGE-1 -j ACCEPT'
+    add_cmd = 'iptables -I DOCKER-ISOLATION-STAGE-1 -j ACCEPT'
+    while run_cmd(check_cmd, True) == 0:
+        cleanup_bridge_forwarding()
+    run_cmd(add_cmd, True)
+    return
 
+def cleanup_bridge_forwarding():
+    #cmd = 'sysctl net.bridge.bridge-nf-call-iptables=0'
+    check_cmd = 'iptables -C DOCKER-ISOLATION-STAGE-1 -j ACCEPT'
+    delete_cmd = 'iptables -D DOCKER-ISOLATION-STAGE-1 -j ACCEPT'
+    if run_cmd(check_cmd, True) == 0:
+        run_cmd(delete_cmd, True)
+    return
 
 def kill_agetty():
     cmd = 'pkill agetty'
@@ -503,8 +518,6 @@ class VEOS(Device):
         else:
             return {}
 
-    def publish_port(self, *args, **kwargs):
-        raise NotImplementedError("Can't publish ports for {}".format(self.__class__))
 
 class VMX(Device):
     def __init__(self, *args, **kwargs):
@@ -719,7 +732,7 @@ def main():
     
     LOG.debug("PUBLISH_BASE is {} of type {}".format(PUBLISH_BASE, type(PUBLISH_BASE)))
     # We're only publishing ceos ports, not host or cvp
-    ceos_only = [k for k in devices.keys() if devices[k].type == 'ceos']
+    ceos_only = [k for k in devices.keys() if devices[k].type in ['ceos', 'veos']]
     # Publishing ports. If type is INT assuming default behaviour which is
     # Single mapping of inside 443 to outside PUBLISH_BASE+index
     if PUBLISH_BASE and (type(PUBLISH_BASE) == int):
@@ -768,6 +781,8 @@ def main():
             enable_lldp(links)
             LOG.debug('Enabling IP forwarding inside all containers')
             enable_ipForwarding(devices)
+            LOG.debug('Enabling inter-bridge forwarding')
+            enable_bridge_forwarding()
         else:
             LOG.info('Devices have not been started')
             return 1
@@ -782,6 +797,7 @@ def main():
         )
         LOG.info(''.join(['\nunalias {}'.format(name) for (name, device) in devices.items()]))
         kill_agetty()
+        cleanup_bridge_forwarding()
 
         if all(killed):
             LOG.info('All devices destroyed successfully')  
