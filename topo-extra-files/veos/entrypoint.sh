@@ -135,7 +135,7 @@ for idx in "${!INTFS[@]}"; do
   addr="${ADDR[$idx]}"
   if [ "${intf}" == "eth0" ]; then 
     NICS=$NICS" -device virtio-net-pci,netdev=mgmt,addr=${addr},multifunction=on "
-    NICS=$NICS" -netdev user,id=mgmt,net=10.0.0.0/24,hostfwd=tcp::22-:22 "
+    NICS=$NICS" -netdev user,id=mgmt,net=10.0.0.0/24,hostfwd=tcp::22-:22,hostfwd=tcp::443-:443 "
     continue
   fi
   name="macvtap${idx}"

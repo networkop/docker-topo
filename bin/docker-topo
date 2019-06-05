@@ -117,6 +117,12 @@ def enable_lldp(networks):
 def enable_ipForwarding(devices):
     [d.container.exec_run("sysctl -w net.ipv4.ip_forward=1") for _,d in devices.items() if d.type == 'ceos']
 
+def enable_write_mem(devices):
+    cmd = "sed -i 's/os.rename( srcFileName, dstFileName )/import shutil;shutil.move( srcFileName, dstFileName )/' /usr/lib/python2.7/site-packages/Url.py"
+    [d.container.exec_run(cmd) for _,d in devices.items() if d.type == 'ceos']
+
+
+
 def kill_agetty():
     cmd = 'pkill agetty'
     run_cmd(cmd, True)
@@ -756,6 +762,8 @@ def main():
 
         if all(started):
             LOG.info('All devices started successfully')
+            LOG.debug('Patching ConfigAgent to enable write mem')
+            enable_write_mem(devices)
             LOG.debug('Enabling LLDP forwarding on Docker bridges')
             enable_lldp(links)
             LOG.debug('Enabling IP forwarding inside all containers')
