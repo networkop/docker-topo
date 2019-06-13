@@ -43,7 +43,7 @@ ip link set dev virbr1 up
 
 # Generate libvirt XML
 /tmp/generateXmlForKvm.py -n cvp \
---device-bridge virbr0 --cluster-bridge virbr1 -i /tmp/cvxTemplate.xml -o result.xml \
+--device-bridge virbr0 --cluster-bridge virbr1 -i /tmp/cvpTemplate.xml -o result.xml \
 -x /tmp/disk1.qcow2 -y /tmp/disk2.qcow2 -c /tmp/node1-cvp.iso \
 -b 10240 -p 2 \
 -e /usr/libexec/qemu-kvm
