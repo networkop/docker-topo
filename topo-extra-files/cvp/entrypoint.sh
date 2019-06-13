@@ -41,6 +41,9 @@ ip link set dev virbr1 up
 # Generate ISO
 /tmp/geniso.py  -y /tmp/answers.yaml -p cvpadmin -o /tmp/
 
+echo 'Setting /dev/kvm permissions'
+chmod 660 /dev/kvm && chown root:qemu /dev/kvm
+
 # Generate libvirt XML
 /tmp/generateXmlForKvm.py -n cvp \
 --device-bridge virbr0 --cluster-bridge virbr1 -i /tmp/cvpTemplate.xml -o result.xml \
