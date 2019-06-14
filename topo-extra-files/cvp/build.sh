@@ -25,7 +25,7 @@ check_if_file_exists cvp.tgz
 check_if_file_exists cvp-tools.tgz
 check_if_file_exists answers.yaml
 
-chmod 660 /dev/kvm && chown root:qemu /dev/kvm
+
 
 CMD="docker build -t cvp ."
 echo $CMD
