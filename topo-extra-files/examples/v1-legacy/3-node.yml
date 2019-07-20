@@ -3,7 +3,7 @@ links:
   - ["cEOS-1:Ethernet2", "cEOS-3:Ethernet1"]
   - ["cEOS-2:Ethernet1", "cEOS-3:Ethernet2"]
 
-PREFIX: 3-node-topology
+PREFIX: 3-node
 CONF_DIR: ./config
 CEOS_IMAGE: ceosimage:latest
 PUBLISH_BASE: 9000
