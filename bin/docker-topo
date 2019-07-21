@@ -20,8 +20,7 @@ DOCKER = docker.from_env()
 netns.NETNS_RUN_DIR = "/var/run/docker/netns"
 SUPPORTED_DRIVERS = ['macvlan', 'bridge', 'veth']
 DEVNULL = open(os.devnull, 'w')
-CVP_MEM_MAX = "7g" # 6GB in bytes
-CVP_MEMSWAP_MAX = "7g"
+CVP_MEM_MAX = "8192" 
 
 # Global variables
 VERSION = 1
@@ -34,6 +33,7 @@ VMX_VERSION = 'vrnetlab/vr-vmx:17.2R1.13'
 CSR_VERSION = 'vrnetlab/vr-csr:16.04.01'
 XRV_VERSION = 'vrnetlab/vr-xrv:6.1.2'
 CUSTOM_IMAGE = dict()
+CVP_VERSION = 'cvp:latest'
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Tool to create docker topologies")
@@ -474,22 +474,10 @@ class CVP(Device):
         super().__init__(*args, **kwargs)
         # Overriding defaults
         self.type = 'cvp'
-        self.image = 'cvp:latest'
+        self.image = CVP_VERSION
         self.ports = {'443/tcp': 443}
-        self.prefix = OOB_PREFIX
-        self.command = self._get_ip_mask()
+        self.command = CVP_MEM_MAX
         self.entry_cmd = 'docker exec -it {} bash'.format(self.name)
-
-    def start(self, *args, **kwargs):
-        rc = super().start(*args, **kwargs)
-        LOG.debug("Setting CVP max memory utilisation")
-        self.container.update(mem_limit=CVP_MEM_MAX, memswap_limit=CVP_MEMSWAP_MAX)
-        return rc
-
-    def _get_ip_mask(self):
-        prefix = netaddr.IPNetwork(self.prefix)
-        # Giving CVP the last IP from the OOB subnet
-        return [str(prefix[-2]), str(prefix.netmask)]
 
     def publish_port(self, *args, **kwargs):
         raise NotImplementedError("Can't publish ports for {}".format(self.__class__))
@@ -663,7 +651,8 @@ class Link(object):
 
 def main():
     # Initializing main variables
-    global PREFIX, CEOS_IMAGE, CONF_DIR, PUBLISH_BASE, OOB_PREFIX, VERSION, PUBLISH_SSH, VMX_VERSION, CSR_VERSION, XRV_VERSION, CUSTOM_IMAGE
+    global PREFIX, CEOS_IMAGE, CONF_DIR, PUBLISH_BASE, OOB_PREFIX, VERSION, PUBLISH_SSH, \
+        VMX_VERSION, CSR_VERSION, XRV_VERSION, CUSTOM_IMAGE, CVP_VERSION
     
     # Assigning arguments
     args    = parse_args()
@@ -706,6 +695,7 @@ def main():
     CSR_VERSION = t_yml.get('CSR_VERSION',os.getenv('CSR_VERSION', CSR_VERSION))
     XRV_VERSION = t_yml.get('XRV_VERSION',os.getenv('XRV_VERSION', XRV_VERSION))
     CUSTOM_IMAGE = t_yml.get('CUSTOM_IMAGE',os.getenv('CUSTOM_IMAGE', CUSTOM_IMAGE))
+    CVP_VERSION = t_yml.get('CVP_VERSION',os.getenv('CVP_VERSION', CVP_VERSION))
     PREFIX = t_yml.get('PREFIX',os.getenv('PREFIX', PREFIX))
 
     if VERSION == 2 and os.geteuid() != 0:
