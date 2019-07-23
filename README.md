@@ -126,6 +126,14 @@ links:
   - endpoints: ["Leaf1:eth3", "Leaf2:eth3"]
 ```
 
+__Note__: You also need to specify the default eth0 intefaces for all endpoints given docker-topo does not create said interface whereas normal docker create does create this interface without defining.
+
+  ## macOS / OSX Support
+
+  Pyroute2 supports BSD as of 0.5.2, but veth drivers will not work in topology files.
+ >Pyroute2 runs natively on Linux and emulates some limited subset of RTNL netlink API on BSD systems on top of PF_ROUTE notifications and standard system tools.
+
+
 
 ## (Optional) Global variables
 Along with the mandatory `link` array, there are a number of options that can be specified to override some of the default settings. Below are the list of options with their default values:
