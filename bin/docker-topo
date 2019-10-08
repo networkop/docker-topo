@@ -10,6 +10,7 @@ import netaddr
 import subprocess
 from pyroute2 import IPDB
 from pyroute2 import netns
+from packaging import version
 if sys.platform != 'darwin':
   from pyroute2 import NetNS
 from distutils.version import LooseVersion
@@ -412,6 +413,13 @@ class CEOS(Device):
                                "SKIP_ZEROTOUCH_BARRIER_IN_SYSDBINIT": 1,
                                "INTFTYPE": "eth"
                            }
+        if version.parse(ceos_version) > version.parse("4.22.2F"):
+            self.command += " systemd.setenv=INTFTYPE=eth"
+            self.command += " systemd.setenv=ETBA=1"
+            self.command += " systemd.setenv=SKIP_ZEROTOUCH_BARRIER_IN_SYSDBINIT=1"
+            self.command += " systemd.setenv=CEOS=1"
+            self.command += " systemd.setenv=container=docker"
+            self.command += " systemd.setenv=EOS_PLATFORM=ceoslab"
         self.entry_cmd = 'docker exec -it {} Cli'.format(self.name)
         # Overriding extra variables
         self.volumes = self._get_config()
