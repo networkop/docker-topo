@@ -413,7 +413,7 @@ class CEOS(Device):
                                "SKIP_ZEROTOUCH_BARRIER_IN_SYSDBINIT": 1,
                                "INTFTYPE": "eth"
                            }
-        if version.parse(ceos_version) > version.parse("4.22.2F"):
+        if ceos_version == "latest" or version.parse(ceos_version) > version.parse("4.22.2F"):
             self.command += " systemd.setenv=INTFTYPE=eth"
             self.command += " systemd.setenv=ETBA=1"
             self.command += " systemd.setenv=SKIP_ZEROTOUCH_BARRIER_IN_SYSDBINIT=1"
