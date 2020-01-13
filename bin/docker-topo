@@ -593,6 +593,11 @@ class Veth(object):
         ns_name = device.sandbox.split('/')[-1]
         with IPDB(nl=NetNS(ns_name)) as ns:
             with ns.interfaces[interface] as i:
+                if int(i.address[1], 16) & 0x02 > 0:
+                    # MLAG mechanism uses the "locally administered bit" from the MAC address
+                    # and practically, the Mlag agent will core when set.
+                    i.address = i.address[0] + "0" + i.address[2:]
+                    i.commit()
                 i.up()
  
 
