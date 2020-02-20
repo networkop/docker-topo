@@ -1,4 +1,4 @@
-FROM centos:latest
+FROM centos:7
 
 # Include epel for python-pip and update cache
 RUN yum -y install epel-release && \

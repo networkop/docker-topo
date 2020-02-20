@@ -414,7 +414,7 @@ class CEOS(Device):
                                "SKIP_ZEROTOUCH_BARRIER_IN_SYSDBINIT": 1,
                                "INTFTYPE": "eth"
                            }
-        if version.parse(ceos_version) > version.parse("4.22.2F"):
+        if ceos_version == "latest" or version.parse(ceos_version) > version.parse("4.22.2F"):
             self.command += " systemd.setenv=INTFTYPE=eth"
             self.command += " systemd.setenv=ETBA=1"
             self.command += " systemd.setenv=SKIP_ZEROTOUCH_BARRIER_IN_SYSDBINIT=1"
@@ -606,6 +606,11 @@ class Veth(object):
         ns_name = device.sandbox.split('/')[-1]
         with IPDB(nl=NetNS(ns_name)) as ns:
             with ns.interfaces[interface] as i:
+                if int(i.address[1], 16) & 0x02 > 0:
+                    # MLAG mechanism uses the "locally administered bit" from the MAC address
+                    # and practically, the Mlag agent will core when set.
+                    i.address = i.address[0] + "0" + i.address[2:]
+                    i.commit()
                 i.up()
  
 
