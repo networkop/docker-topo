@@ -8,6 +8,7 @@ import docker
 import os.path
 import netaddr
 import subprocess
+import random
 from pyroute2 import IPDB
 from pyroute2 import netns
 from packaging import version
@@ -577,6 +578,17 @@ class Veth(object):
     def _get(self, intf):
         return self.ipdb.interfaces.get(intf)
 
+    def _generate_mac(self):
+        # TODO should not hardcode arista vendor prefix
+        arista_vendor = "00:1c:"
+        random_suffix = "%02x:%02x:%02x:%02x" % (
+            random.randint(0, 255),
+            random.randint(0, 255),
+            random.randint(0, 255),
+            random.randint(0, 255)
+        )
+        return arista_vendor + random_suffix
+
     def connect(self, device, interface):
         ns_fd = os.open('/proc/{}/ns/net'.format(device.pid), os.O_RDONLY) 
         veth = self._get(self.sideB)
@@ -587,6 +599,7 @@ class Veth(object):
         with veth as i:
             i.ifname = interface
             i.net_ns_fd = ns_fd
+            i.address = self._generate_mac()
             i.up()
             # TODO Could add veth.add_ip('1.1.1.1/24') and get rid of set_ips.sh script
             LOG.debug("Create an interface for container {}: {}".format(device.name, i.review()))
