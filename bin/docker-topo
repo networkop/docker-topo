@@ -369,6 +369,18 @@ class Device(object):
                       .format(self.name, interface))
             link = self.interfaces[interface]
             link.connect(self, interface)
+        LOG.debug(f"Bringing up interfaces for {self.name}")
+        ns_name = self.sandbox.split('/')[-1]
+        with IPDB(nl=NetNS(ns_name)) as ns:
+            for interface in sorted(self.interfaces):
+                with ns.interfaces[interface] as i:
+                    if int(i.address[1], 16) & 0x02 > 0:
+                        # MLAG mechanism uses the "locally administered bit" from the MAC address
+                        # and practically, the Mlag agent will core when set.
+                        LOG.debug(f"Changing interface mac from {i.address}")
+                        i.set_address(i.address[0] + "0" + i.address[2:]).commit()
+                        LOG.debug(f"to {i.address}")
+                    i.up()
         return
 
     def kill(self):
@@ -589,18 +601,8 @@ class Veth(object):
             i.net_ns_fd = ns_fd
             i.up()
             # TODO Could add veth.add_ip('1.1.1.1/24') and get rid of set_ips.sh script
-            LOG.debug("Create an interface for container {}: {}".format(device.name, i.review()))
-        ns_name = device.sandbox.split('/')[-1]
-        with IPDB(nl=NetNS(ns_name)) as ns:
-            with ns.interfaces[interface] as i:
-                if int(i.address[1], 16) & 0x02 > 0:
-                    # MLAG mechanism uses the "locally administered bit" from the MAC address
-                    # and practically, the Mlag agent will core when set.
-                    LOG.debug(f"Changing interface mac from {i.address}")
-                    i.set_address(i.address[0] + "0" + i.address[2:]).commit()
-                    LOG.debug(f"to {i.address}")
-                i.up()
- 
+            LOG.debug("Created an interface for container {}: {}".format(device.name, i.review()))
+
 
 class Link(object):
     def __init__(self, link_type, name, link_driver=None, driver_opts=None):
